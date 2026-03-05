@@ -7,7 +7,7 @@ const rooms: Map<string, Room> = new Map();
 const createRateMap: Map<string, number[]> = new Map();
 
 const MAX_CONCURRENT_ROOMS = 50;
-const MAX_CREATES_PER_IP_PER_HOUR = 5;
+const MAX_CREATES_PER_IP_PER_HOUR = 20;
 const ROOM_EXPIRY_MS = 2 * 60 * 60 * 1000; // 2 hours
 const EMPTY_ROOM_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes if empty
 

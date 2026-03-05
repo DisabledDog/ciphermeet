@@ -17,6 +17,7 @@ export default function HomePage() {
   const [joinCode, setJoinCode] = useState('');
   const [mounted, setMounted] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [showDonate, setShowDonate] = useState(false);
 
   const progressRef = useRef(0);
   const animatingRef = useRef(false);
@@ -242,36 +243,118 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-8">
+            <div className="grid grid-cols-3 gap-8 bg-black/60 rounded-xl py-4 px-2 -mx-2">
               <div className="text-center space-y-3">
-                <div className="w-px h-8 bg-gradient-to-b from-white/30 to-transparent mx-auto" />
-                <p className="text-[10px] text-white/30 tracking-[0.2em] uppercase">No accounts</p>
+                <div className="w-px h-8 bg-gradient-to-b from-white/50 to-transparent mx-auto" />
+                <p className="text-[11px] text-white/50 tracking-[0.2em] uppercase font-light">No accounts</p>
               </div>
               <div className="text-center space-y-3">
-                <div className="w-px h-8 bg-gradient-to-b from-white/30 to-transparent mx-auto" />
-                <p className="text-[10px] text-white/30 tracking-[0.2em] uppercase">No data stored</p>
+                <div className="w-px h-8 bg-gradient-to-b from-white/50 to-transparent mx-auto" />
+                <p className="text-[11px] text-white/50 tracking-[0.2em] uppercase font-light">No data stored</p>
               </div>
               <div className="text-center space-y-3">
-                <div className="w-px h-8 bg-gradient-to-b from-white/30 to-transparent mx-auto" />
-                <p className="text-[10px] text-white/30 tracking-[0.2em] uppercase">No trace</p>
+                <div className="w-px h-8 bg-gradient-to-b from-white/50 to-transparent mx-auto" />
+                <p className="text-[11px] text-white/50 tracking-[0.2em] uppercase font-light">No trace</p>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Donation link */}
-      <a
-        href="https://buymeacoffee.com/ciphermeet"
-        target="_blank"
-        rel="noopener noreferrer"
+      {/* FAQ button */}
+      <button
+        onClick={() => router.push('/faq')}
+        className="fixed bottom-4 left-4 z-50 w-9 h-9 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm text-white/30 hover:text-white/60 hover:border-white/25 hover:bg-white/10 hover:scale-110 transition-all flex items-center justify-center group"
+        title="FAQ"
+      >
+        <span className="text-sm font-light group-hover:scale-110 transition-transform">?</span>
+      </button>
+
+      {/* Donation button */}
+      <button
+        onClick={() => setShowDonate(true)}
         className="fixed bottom-4 right-4 z-50 flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 bg-black/50 backdrop-blur-sm text-white/30 hover:text-white/60 hover:border-white/20 transition-all text-[10px] tracking-wider uppercase"
       >
         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
         </svg>
         Donate
-      </a>
+      </button>
+
+      {/* Donate Modal */}
+      {showDonate && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-fade-in"
+            onClick={() => setShowDonate(false)}
+          />
+
+          {/* Modal */}
+          <div className="relative w-full max-w-sm animate-fade-in-up">
+            {/* Glow border */}
+            <div className="absolute -inset-[1px] bg-gradient-to-b from-white/20 via-white/5 to-transparent rounded-2xl" />
+
+            <div className="relative bg-black rounded-2xl p-8 space-y-6">
+              {/* Close */}
+              <button
+                onClick={() => setShowDonate(false)}
+                className="absolute top-4 right-4 text-white/20 hover:text-white/60 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              {/* Heart icon */}
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl border border-white/10 bg-white/5 mb-4">
+                  <svg className="w-6 h-6 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                </div>
+                <h2 className="text-xl font-light text-white/90 tracking-wide">Support CipherMeet</h2>
+                <p className="text-white/25 text-sm font-light mt-2 leading-relaxed">
+                  CipherMeet is free, ad-free, and funded entirely by donations. Every contribution helps keep the servers running and the project alive.
+                </p>
+              </div>
+
+              <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+              {/* PayPal button */}
+              <a
+                href="https://paypal.me/ciphermeet"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group w-full flex items-center justify-between p-4 rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/5 hover:border-white/20 transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#0070ba]/10 border border-[#0070ba]/20 flex items-center justify-center">
+                    <svg className="w-5 h-5 text-[#0070ba]" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M7.076 21.337H2.47a.641.641 0 01-.633-.74L4.944 3.72a.77.77 0 01.757-.65h6.23c2.073 0 3.524.437 4.319 1.3.373.406.617.852.739 1.361.13.548.134 1.203.009 2.004l-.01.061v.539l.42.238a2.832 2.832 0 01.846.706c.334.414.556.936.66 1.551.106.633.087 1.368-.057 2.185-.167.941-.437 1.764-.806 2.445a4.987 4.987 0 01-1.271 1.528c-.488.38-1.058.656-1.7.826-.62.167-1.316.25-2.072.25H12.14a.95.95 0 00-.939.803l-.033.199-.549 3.483-.027.143a.95.95 0 01-.938.803H7.076z" />
+                      <path d="M18.282 7.976c-.014.085-.03.172-.047.26-.615 3.153-2.723 4.243-5.415 4.243h-1.37a.667.667 0 00-.659.563l-.7 4.443-.199 1.263a.35.35 0 00.346.406h2.428a.584.584 0 00.577-.494l.024-.122.457-2.903.03-.159a.585.585 0 01.577-.495h.364c2.354 0 4.198-.957 4.737-3.724.225-1.156.109-2.122-.487-2.801a2.323 2.323 0 00-.663-.48z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-white/70 text-sm font-light">PayPal</p>
+                    <p className="text-white/25 text-[10px] tracking-wider uppercase">One-time or recurring</p>
+                  </div>
+                </div>
+                <svg className="w-4 h-4 text-white/20 group-hover:text-white/40 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+                </svg>
+              </a>
+
+              {/* Footer message */}
+              <div className="text-center pt-2">
+                <p className="text-white/15 text-[10px] tracking-[0.2em] uppercase">
+                  No account needed to donate
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

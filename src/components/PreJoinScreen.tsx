@@ -7,9 +7,10 @@ interface PreJoinScreenProps {
   roomId: string;
   onJoin: (displayName: string, password?: string) => void;
   initialPassword?: string;
+  initialError?: string;
 }
 
-export function PreJoinScreen({ roomId, onJoin, initialPassword }: PreJoinScreenProps) {
+export function PreJoinScreen({ roomId, onJoin, initialPassword, initialError }: PreJoinScreenProps) {
   const [name, setName] = useState('');
   const [password, setPassword] = useState(initialPassword || '');
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
@@ -21,36 +22,46 @@ export function PreJoinScreen({ roomId, onJoin, initialPassword }: PreJoinScreen
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [roomInfo, setRoomInfo] = useState<{ exists: boolean; hasPassword: boolean; peerCount: number } | null>(null);
   const [checking, setChecking] = useState(true);
+  const [error, setError] = useState<string | null>(initialError || null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    const checkRoom = async () => {
-      try {
-        const socket = getSocket();
-        socket.connect();
+    checkRoom();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId]);
 
-        await new Promise<void>((resolve, reject) => {
-          const timeout = setTimeout(() => { resolve(); }, 5000);
-          socket.once('connect', () => { clearTimeout(timeout); resolve(); });
-          if (socket.connected) { clearTimeout(timeout); resolve(); }
-        });
+  const checkRoom = async () => {
+    setChecking(true);
+    setError(null);
+    try {
+      const socket = getSocket();
+      socket.connect();
 
-        if (socket.connected) {
-          socket.emit('room-info', { roomId }, (info: any) => {
-            setRoomInfo(info);
-            setChecking(false);
-            socket.removeAllListeners();
-            disconnectSocket();
-          });
-        } else {
+      await new Promise<void>((resolve) => {
+        const timeout = setTimeout(() => { resolve(); }, 5000);
+        socket.once('connect', () => { clearTimeout(timeout); resolve(); });
+        if (socket.connected) { clearTimeout(timeout); resolve(); }
+      });
+
+      if (socket.connected) {
+        socket.emit('room-info', { roomId }, (info: any) => {
+          setRoomInfo(info);
+          if (!info.exists) {
+            setError('Room not found or expired');
+          }
           setChecking(false);
-        }
-      } catch {
+          socket.removeAllListeners();
+          disconnectSocket();
+        });
+      } else {
+        setError('Can\u2019t connect to server');
         setChecking(false);
       }
-    };
-    checkRoom();
-  }, [roomId]);
+    } catch {
+      setError('Can\u2019t connect to server');
+      setChecking(false);
+    }
+  };
 
   const startPreview = async (audioDeviceId?: string, videoDeviceId?: string) => {
     if (previewStream) {
@@ -64,7 +75,19 @@ export function PreJoinScreen({ roomId, onJoin, initialPassword }: PreJoinScreen
           ? { deviceId: { exact: videoDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
           : { width: { ideal: 1280 }, height: { ideal: 720 } },
       };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch {
+        // Fallback: try audio only, then video only
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: constraints.audio });
+          setVideoEnabled(false);
+        } catch {
+          stream = await navigator.mediaDevices.getUserMedia({ video: constraints.video });
+          setAudioEnabled(false);
+        }
+      }
       setPreviewStream(stream);
       setPermissionError(null);
 
@@ -122,68 +145,15 @@ export function PreJoinScreen({ roomId, onJoin, initialPassword }: PreJoinScreen
     if (previewStream) {
       previewStream.getTracks().forEach((t) => t.stop());
     }
+    setError(null);
     onJoin(name.trim(), roomInfo?.hasPassword ? password : undefined);
   };
 
   const needsPassword = roomInfo?.hasPassword && !initialPassword;
-
-  // Room doesn't exist and no one is in it
-  if (!checking && roomInfo && !roomInfo.exists) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black p-4">
-        <div className="w-full max-w-md text-center space-y-6">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl border border-white/10 bg-white/5 mb-2">
-            <svg className="w-7 h-7 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 2a10 10 0 110 20 10 10 0 010-20z" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-light text-white/90 tracking-wide">Room Not Found</h1>
-          <p className="text-white/30 text-sm font-light">
-            The room <span className="font-mono text-white/50">{roomId}</span> doesn&apos;t exist or has expired.
-          </p>
-          <div className="pt-2 space-y-3">
-            <button
-              onClick={() => window.location.href = '/'}
-              className="w-full py-3.5 bg-white text-black font-semibold rounded-xl transition-all hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Go Home
-            </button>
-            <button
-              onClick={() => { setChecking(true); setRoomInfo(null); const socket = getSocket(); socket.connect(); const waitConnect = () => { if (socket.connected) { socket.emit('room-info', { roomId }, (info: any) => { setRoomInfo(info); setChecking(false); socket.removeAllListeners(); disconnectSocket(); }); } else { setTimeout(waitConnect, 500); } }; waitConnect(); }}
-              className="w-full py-3 border border-white/15 text-white/50 font-light rounded-xl transition-all hover:bg-white/5 hover:text-white/70 text-sm"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Connection to server failed
-  if (!checking && !roomInfo) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black p-4">
-        <div className="w-full max-w-md text-center space-y-6">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl border border-white/10 bg-white/5 mb-2">
-            <svg className="w-7 h-7 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01M12 2a10 10 0 110 20 10 10 0 010-20z" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-light text-white/90 tracking-wide">Can&apos;t Connect</h1>
-          <p className="text-white/30 text-sm font-light">
-            Unable to reach the server. Please check your connection and try again.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="w-full py-3.5 bg-white text-black font-semibold rounded-xl transition-all hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:scale-[1.02] active:scale-[0.98]"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const hasError = !!error;
+  const roomNotFound = roomInfo && !roomInfo.exists;
+  const cantConnect = !checking && !roomInfo;
+  const canJoin = name.trim() && !roomNotFound && !cantConnect && !checking && (!needsPassword || password.trim());
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black p-4">
@@ -308,7 +278,7 @@ export function PreJoinScreen({ roomId, onJoin, initialPassword }: PreJoinScreen
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && name.trim()) handleJoin();
+              if (e.key === 'Enter' && canJoin) handleJoin();
             }}
             className="w-full px-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-center font-light tracking-wide"
             autoFocus
@@ -319,21 +289,42 @@ export function PreJoinScreen({ roomId, onJoin, initialPassword }: PreJoinScreen
               type="password"
               placeholder="Room password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => { setPassword(e.target.value); setError(null); }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && name.trim()) handleJoin();
+                if (e.key === 'Enter' && canJoin) handleJoin();
               }}
-              className="w-full px-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all text-center font-light tracking-wide"
+              className={`w-full px-4 py-3.5 bg-white/5 border rounded-xl text-white placeholder-white/20 focus:outline-none transition-all text-center font-light tracking-wide ${
+                error?.includes('password') ? 'border-red-500/40' : 'border-white/10 focus:border-white/30'
+              }`}
             />
           )}
 
+          {/* Inline error */}
+          {hasError && (
+            <p className="text-red-400/80 text-sm text-center font-light tracking-wide">{error}</p>
+          )}
+
           <button
-            onClick={handleJoin}
-            disabled={!name.trim() || (needsPassword && !password.trim()) || checking}
-            className="group w-full py-3.5 bg-white text-black font-semibold rounded-xl transition-all hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:scale-[1.02] active:scale-[0.98] disabled:bg-white/5 disabled:text-white/20 disabled:shadow-none disabled:scale-100"
+            onClick={canJoin ? handleJoin : cantConnect ? () => checkRoom() : roomNotFound ? () => checkRoom() : undefined}
+            disabled={!canJoin && !cantConnect && !roomNotFound}
+            className={`group w-full py-3.5 font-semibold rounded-xl transition-all ${
+              hasError
+                ? 'bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20'
+                : 'bg-white text-black hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:scale-[1.02] active:scale-[0.98] disabled:bg-white/5 disabled:text-white/20 disabled:shadow-none disabled:scale-100'
+            }`}
           >
-            {checking ? 'Checking room...' : 'Join Room'}
+            {checking ? 'Checking room...' : hasError ? 'Try Again' : 'Join Room'}
           </button>
+
+          {/* Home link when error */}
+          {hasError && (
+            <button
+              onClick={() => window.location.href = '/'}
+              className="w-full py-2 text-white/30 hover:text-white/50 text-xs tracking-wider uppercase transition-colors"
+            >
+              Go Home
+            </button>
+          )}
         </div>
       </div>
     </div>

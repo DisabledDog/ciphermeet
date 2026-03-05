@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { ChatMessage, RemotePeer } from '@/types';
+import { ChatMessage, Reaction, RemotePeer } from '@/types';
 
 interface RoomState {
   roomId: string | null;
@@ -16,7 +16,12 @@ interface RoomState {
   chatMessages: ChatMessage[];
   isChatOpen: boolean;
   isParticipantsOpen: boolean;
+  isHelpOpen: boolean;
   error: string | null;
+  isHost: boolean;
+  handRaised: boolean;
+  raisedHands: Set<string>;
+  reactions: Reaction[];
 
   setRoomId: (roomId: string | null) => void;
   setPeerId: (peerId: string | null) => void;
@@ -32,7 +37,12 @@ interface RoomState {
   addChatMessage: (message: ChatMessage) => void;
   toggleChat: () => void;
   toggleParticipants: () => void;
+  toggleHelp: () => void;
   setError: (error: string | null) => void;
+  setIsHost: (value: boolean) => void;
+  toggleHandRaise: () => void;
+  setHandRaised: (peerId: string, raised: boolean) => void;
+  addReaction: (reaction: Reaction) => void;
   reset: () => void;
 }
 
@@ -49,7 +59,12 @@ const initialState = {
   chatMessages: [],
   isChatOpen: false,
   isParticipantsOpen: false,
+  isHelpOpen: false,
   error: null,
+  isHost: false,
+  handRaised: false,
+  raisedHands: new Set<string>(),
+  reactions: [] as Reaction[],
 };
 
 export const useRoomStore = create<RoomState>((set, get) => ({
@@ -72,13 +87,14 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       const peers = new Map(state.peers);
       const peer = peers.get(peerId);
       if (peer) {
-        // Stop all tracks
         for (const consumer of peer.consumers.values()) {
           consumer.track.stop();
         }
       }
       peers.delete(peerId);
-      return { peers };
+      const raisedHands = new Set(state.raisedHands);
+      raisedHands.delete(peerId);
+      return { peers, raisedHands };
     }),
 
   updatePeerStream: (peerId, stream) =>
@@ -123,8 +139,25 @@ export const useRoomStore = create<RoomState>((set, get) => ({
 
   toggleChat: () => set((state) => ({ isChatOpen: !state.isChatOpen })),
   toggleParticipants: () => set((state) => ({ isParticipantsOpen: !state.isParticipantsOpen })),
+  toggleHelp: () => set((state) => ({ isHelpOpen: !state.isHelpOpen })),
 
   setError: (error) => set({ error }),
+  setIsHost: (value) => set({ isHost: value }),
+
+  toggleHandRaise: () => set((state) => ({ handRaised: !state.handRaised })),
+
+  setHandRaised: (peerId, raised) =>
+    set((state) => {
+      const raisedHands = new Set(state.raisedHands);
+      if (raised) raisedHands.add(peerId);
+      else raisedHands.delete(peerId);
+      return { raisedHands };
+    }),
+
+  addReaction: (reaction) =>
+    set((state) => ({
+      reactions: [...state.reactions, reaction],
+    })),
 
   reset: () => set(initialState),
 }));

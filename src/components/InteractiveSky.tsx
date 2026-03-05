@@ -104,7 +104,7 @@ export function InteractiveSky({ warp = false }: InteractiveSkyProps) {
   }, [warp]);
 
   const initStars = useCallback((w: number, h: number) => {
-    const rand = seededRandom(42);
+    const rand = seededRandom(113);
     const stars: Star[] = [];
     for (let i = 0; i < 400; i++) {
       const layer = i < 100 ? 1 : i < 250 ? 2 : 3;

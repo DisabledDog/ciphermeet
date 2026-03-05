@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSocket, disconnectSocket } from '@/lib/socket';
 import { generateRoomSecret } from '@/lib/e2ee';
@@ -14,6 +14,7 @@ export default function HostPage() {
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   const createRoom = async () => {
     setCreating(true);
@@ -53,6 +54,18 @@ export default function HostPage() {
 
   const roomLink = roomId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/room/${roomId}${e2eeSecret ? `#e2e=${e2eeSecret}` : ''}` : '';
 
+  // Generate QR code when room link is available
+  useEffect(() => {
+    if (!roomLink) return;
+    import('qrcode').then((QRCode) => {
+      QRCode.toDataURL(roomLink, {
+        width: 200,
+        margin: 2,
+        color: { dark: '#ffffff', light: '#000000' },
+      }).then(setQrDataUrl).catch(() => {});
+    }).catch(() => {});
+  }, [roomLink]);
+
   const copyLink = () => {
     navigator.clipboard.writeText(roomLink);
     setCopied(true);
@@ -72,7 +85,7 @@ export default function HostPage() {
         backgroundSize: '30px 30px',
       }} />
       <div className="absolute inset-0 pointer-events-none" style={{
-        background: 'radial-gradient(ellipse at center, transparent 0%, black 70%)',
+        background: 'radial-gradient(ellipse at center, transparent 0%, black 85%)',
       }} />
 
       <div className="w-full max-w-md space-y-8 relative z-10">
@@ -174,22 +187,22 @@ export default function HostPage() {
             {/* Info footer */}
             <div className="flex items-center justify-center gap-6 pt-2">
               <div className="flex items-center gap-1.5">
-                <svg className="w-3 h-3 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3 h-3 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
-                <span className="text-white/15 text-[10px] tracking-wider uppercase">Encrypted</span>
+                <span className="text-white/30 text-[10px] tracking-wider uppercase">Encrypted</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <svg className="w-3 h-3 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3 h-3 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                <span className="text-white/15 text-[10px] tracking-wider uppercase">Up to 30</span>
+                <span className="text-white/30 text-[10px] tracking-wider uppercase">Up to 30</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <svg className="w-3 h-3 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3 h-3 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                <span className="text-white/15 text-[10px] tracking-wider uppercase">Instant</span>
+                <span className="text-white/30 text-[10px] tracking-wider uppercase">Instant</span>
               </div>
             </div>
           </>
@@ -253,6 +266,17 @@ export default function HostPage() {
                   </div>
                 </div>
               </div>
+
+              {/* QR Code */}
+              {qrDataUrl && (
+                <div className="relative">
+                  <div className="absolute -inset-[1px] bg-gradient-to-b from-white/10 via-white/5 to-transparent rounded-2xl" />
+                  <div className="relative bg-black rounded-2xl p-4 flex flex-col items-center">
+                    <p className="text-white/25 text-[10px] uppercase tracking-[0.2em] mb-3">Scan to Join</p>
+                    <img src={qrDataUrl} alt="Room QR Code" className="w-40 h-40 rounded-lg" />
+                  </div>
+                </div>
+              )}
 
               {/* Password badge */}
               {usePassword && password && (

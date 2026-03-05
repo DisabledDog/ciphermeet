@@ -133,16 +133,28 @@ export function useRoom(roomId: string) {
       store.setError('Connection lost. Please rejoin the room.');
     });
 
-    // Get local media
+    // Get local media — try audio+video, fall back gracefully
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 },
-        },
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 },
+          },
+        });
+      } catch {
+        // Firefox/Linux often fails combined request — try separately
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          useRoomStore.setState({ isVideoEnabled: false });
+        } catch {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          useRoomStore.setState({ isAudioEnabled: false });
+        }
+      }
       store.setLocalStream(stream);
 
       // Queue to hold producers that arrive before recv transport is ready
@@ -217,6 +229,30 @@ export function useRoom(roomId: string) {
 
       socket.on('chat-message', (message: ChatMessage) => {
         store.addChatMessage(message);
+      });
+
+      socket.on('host-info', (data: { hostPeerId: string }) => {
+        if (data.hostPeerId === peerId) {
+          store.setIsHost(true);
+        }
+      });
+
+      socket.on('host-mute', (data: { peerId: string; by: string }) => {
+        if (data.peerId === peerId) {
+          // We got muted by the host
+          const state = useRoomStore.getState();
+          if (state.isAudioEnabled) {
+            state.toggleAudio();
+          }
+        }
+      });
+
+      socket.on('hand-raise', (data: { peerId: string; displayName: string; raised: boolean }) => {
+        store.setHandRaised(data.peerId, data.raised);
+      });
+
+      socket.on('reaction', (data: { peerId: string; displayName: string; emoji: string; timestamp: number }) => {
+        store.addReaction(data);
       });
 
       // Listeners registered, now join
@@ -335,6 +371,22 @@ export function useRoom(roomId: string) {
     socket.emit('chat-message', { message });
   }, []);
 
+  const sendHandRaise = useCallback((raised: boolean) => {
+    const socket = getSocket();
+    socket.emit('hand-raise', { raised });
+    store.toggleHandRaise();
+  }, [store]);
+
+  const sendReaction = useCallback((emoji: string) => {
+    const socket = getSocket();
+    socket.emit('reaction', { emoji });
+  }, []);
+
+  const sendHostMute = useCallback((targetPeerId: string) => {
+    const socket = getSocket();
+    socket.emit('host-mute', { targetPeerId });
+  }, []);
+
   const startScreenShare = useCallback(async () => {
     try {
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
@@ -387,6 +439,9 @@ export function useRoom(roomId: string) {
     joinRoom,
     leaveRoom,
     sendChatMessage,
+    sendHandRaise,
+    sendReaction,
+    sendHostMute,
     startScreenShare,
     stopScreenShare,
   };

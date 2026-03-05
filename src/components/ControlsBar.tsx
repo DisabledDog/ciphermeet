@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRoomStore } from '@/store/useRoomStore';
 import { useToastStore } from '@/store/useToastStore';
+import { ReactionPicker } from './ReactionPicker';
 
 interface ControlsBarProps {
   isAudioEnabled: boolean;
@@ -12,6 +13,8 @@ interface ControlsBarProps {
   onToggleVideo: () => void;
   onScreenShare: () => void;
   onLeave: () => void;
+  onHandRaise: (raised: boolean) => void;
+  onReaction: (emoji: string) => void;
   roomId: string;
 }
 
@@ -23,10 +26,14 @@ export function ControlsBar({
   onToggleVideo,
   onScreenShare,
   onLeave,
+  onHandRaise,
+  onReaction,
   roomId,
 }: ControlsBarProps) {
   const toggleChat = useRoomStore((s) => s.toggleChat);
   const toggleParticipants = useRoomStore((s) => s.toggleParticipants);
+  const toggleHelp = useRoomStore((s) => s.toggleHelp);
+  const handRaised = useRoomStore((s) => s.handRaised);
   const addToast = useToastStore((s) => s.addToast);
   const [elapsed, setElapsed] = useState(0);
 
@@ -49,32 +56,42 @@ export function ControlsBar({
     addToast('Invite link copied');
   };
 
-  const btnBase = "p-3 rounded-xl border transition-all";
+  const btnBase = "p-2.5 sm:p-3 rounded-xl border transition-all";
   const btnDefault = `${btnBase} border-white/10 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white`;
   const btnActive = `${btnBase} border-white/30 bg-white/15 text-white`;
   const btnDanger = `${btnBase} border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300`;
   const btnOff = `${btnBase} border-red-500/30 bg-red-500/10 text-red-400`;
 
   return (
-    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30">
-      <div className="flex items-center gap-2 px-4 py-3 bg-black/80 border border-white/10 backdrop-blur-xl rounded-2xl shadow-2xl">
-        {/* Room timer */}
-        <div className="flex items-center gap-1.5 px-2 mr-1">
+    <div className="absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 z-30 max-w-[calc(100vw-1rem)]">
+      {/* Not recorded indicator */}
+      <div className="flex justify-center mb-1.5 sm:mb-2">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-black/60 border border-white/5 rounded-full backdrop-blur-sm">
+          <svg className="w-3 h-3 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+          </svg>
+          <span className="text-white/20 text-[9px] tracking-[0.15em] uppercase">Not recorded</span>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2.5 sm:py-3 bg-black/80 border border-white/10 backdrop-blur-xl rounded-2xl shadow-2xl">
+        {/* Room timer — hidden on mobile */}
+        <div className="hidden sm:flex items-center gap-1.5 px-2 mr-1">
           <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
           <span className="text-white/40 text-xs font-mono tracking-wider">{formatTime(elapsed)}</span>
         </div>
 
-        <div className="w-px h-6 bg-white/10" />
+        <div className="hidden sm:block w-px h-6 bg-white/10" />
 
-        {/* E2E badge */}
-        <div className="flex items-center gap-1 px-2 mr-1" title="End-to-end encrypted">
+        {/* E2E badge — hidden on mobile */}
+        <div className="hidden sm:flex items-center gap-1 px-2 mr-1" title="End-to-end encrypted">
           <svg className="w-3.5 h-3.5 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
-          <span className="text-white/30 text-[10px] tracking-wider uppercase hidden sm:inline">E2E</span>
+          <span className="text-white/30 text-[10px] tracking-wider uppercase">E2E</span>
         </div>
 
-        <div className="w-px h-6 bg-white/10" />
+        <div className="hidden sm:block w-px h-6 bg-white/10" />
 
         {/* Mic toggle */}
         <button onClick={onToggleAudio} className={isAudioEnabled ? btnDefault : btnOff} title={isAudioEnabled ? 'Mute (M)' : 'Unmute (M)'}>
@@ -103,12 +120,28 @@ export function ControlsBar({
           )}
         </button>
 
-        {/* Screen share */}
-        <button onClick={onScreenShare} className={isScreenSharing ? btnActive : btnDefault} title={isScreenSharing ? 'Stop sharing' : 'Share screen'}>
+        {/* Screen share — hidden on mobile */}
+        <button onClick={onScreenShare} className={`hidden sm:block ${isScreenSharing ? btnActive : btnDefault}`} title={isScreenSharing ? 'Stop sharing' : 'Share screen'}>
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
         </button>
+
+        <div className="w-px h-6 bg-white/10" />
+
+        {/* Hand raise */}
+        <button
+          onClick={() => onHandRaise(!handRaised)}
+          className={handRaised ? btnActive : btnDefault}
+          title={handRaised ? 'Lower hand (H)' : 'Raise hand (H)'}
+        >
+          <span className="text-lg leading-none">✋</span>
+        </button>
+
+        {/* Reactions */}
+        <ReactionPicker onReaction={onReaction} />
+
+        <div className="w-px h-6 bg-white/10" />
 
         {/* Copy invite link */}
         <button onClick={copyInviteLink} className={btnDefault} title="Copy invite link">
@@ -131,7 +164,14 @@ export function ControlsBar({
           </svg>
         </button>
 
-        <div className="w-px h-6 bg-white/10" />
+        {/* Help — hidden on mobile */}
+        <button onClick={toggleHelp} className={`hidden sm:block ${btnDefault}`} title="Help & shortcuts (?)">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+
+        <div className="hidden sm:block w-px h-6 bg-white/10" />
 
         {/* Leave */}
         <button onClick={onLeave} className={btnDanger} title="Leave call">

@@ -9,9 +9,12 @@ interface VideoTileProps {
   isLocal?: boolean;
   isMuted?: boolean;
   isVideoOff?: boolean;
+  handRaised?: boolean;
+  canMute?: boolean;
+  onMute?: () => void;
 }
 
-export function VideoTile({ stream, displayName, isLocal, isMuted, isVideoOff }: VideoTileProps) {
+export function VideoTile({ stream, displayName, isLocal, isMuted, isVideoOff, handRaised, canMute, onMute }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const audioLevel = useAudioLevel(stream, !isMuted);
@@ -50,7 +53,7 @@ export function VideoTile({ stream, displayName, isLocal, isMuted, isVideoOff }:
 
   return (
     <div
-      className={`relative bg-black rounded-xl overflow-hidden aspect-video flex items-center justify-center transition-all duration-300 ${
+      className={`group relative bg-black rounded-xl overflow-hidden aspect-video flex items-center justify-center transition-all duration-300 ${
         isSpeaking
           ? 'border-2 border-white/40 shadow-[0_0_20px_rgba(255,255,255,0.1)]'
           : 'border border-white/10'
@@ -79,11 +82,32 @@ export function VideoTile({ stream, displayName, isLocal, isMuted, isVideoOff }:
         </div>
       )}
 
+      {/* Hand raise indicator */}
+      {handRaised && (
+        <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-sm border border-white/10 px-2 py-1 rounded-lg">
+          <span className="text-base">✋</span>
+        </div>
+      )}
+
       {/* Speaking indicator dot */}
       {isSpeaking && (
         <div className="absolute top-2 right-2">
           <div className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
         </div>
+      )}
+
+      {/* Host mute button */}
+      {canMute && !isLocal && onMute && (
+        <button
+          onClick={onMute}
+          className="absolute top-2 right-10 bg-black/70 backdrop-blur-sm border border-white/10 hover:border-red-500/30 hover:bg-red-500/10 p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+          title="Mute participant"
+        >
+          <svg className="w-3.5 h-3.5 text-white/50 hover:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+          </svg>
+        </button>
       )}
 
       {/* Name label */}

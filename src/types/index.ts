@@ -29,3 +29,10 @@ export interface ProducerInfo {
   producerId: string;
   kind: MediaKind;
 }
+
+export interface Reaction {
+  peerId: string;
+  displayName: string;
+  emoji: string;
+  timestamp: number;
+}

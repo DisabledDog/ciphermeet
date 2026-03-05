@@ -93,6 +93,9 @@ export function setupSignaling(io: SocketServer): void {
 
         callback({ rtpCapabilities: room.router.rtpCapabilities });
 
+        // Tell the peer if they're the host
+        socket.emit('host-info', { hostPeerId: room.hostPeerId });
+
         // Send existing producers after callback
         if (existingProducers.length > 0) {
           socket.emit('existing-producers', existingProducers);
@@ -311,6 +314,54 @@ export function setupSignaling(io: SocketServer): void {
         console.error('[Signaling] close-producer error:', err);
         callback({ error: err.message });
       }
+    });
+
+    socket.on('host-mute', (data: { targetPeerId: string }) => {
+      if (!currentRoomId || !currentPeerId) return;
+      const room = getRoom(currentRoomId);
+      if (!room) return;
+
+      // Only host can mute others
+      if (room.hostPeerId !== currentPeerId) return;
+
+      const targetPeer = room.getPeer(data.targetPeerId);
+      if (!targetPeer) return;
+
+      // Tell the target peer to mute themselves
+      io.to(currentRoomId).emit('host-mute', {
+        peerId: data.targetPeerId,
+        by: currentPeerId,
+      });
+    });
+
+    socket.on('hand-raise', (data: { raised: boolean }) => {
+      if (!currentRoomId || !currentPeerId) return;
+      const room = getRoom(currentRoomId);
+      const peer = room?.getPeer(currentPeerId);
+      if (!room || !peer) return;
+
+      io.to(currentRoomId).emit('hand-raise', {
+        peerId: currentPeerId,
+        displayName: peer.displayName,
+        raised: data.raised,
+      });
+    });
+
+    socket.on('reaction', (data: { emoji: string }) => {
+      if (!currentRoomId || !currentPeerId) return;
+      const room = getRoom(currentRoomId);
+      const peer = room?.getPeer(currentPeerId);
+      if (!room || !peer) return;
+
+      const allowed = ['👍', '👎', '❤️', '😂', '👏', '🎉'];
+      if (!allowed.includes(data.emoji)) return;
+
+      io.to(currentRoomId).emit('reaction', {
+        peerId: currentPeerId,
+        displayName: peer.displayName,
+        emoji: data.emoji,
+        timestamp: Date.now(),
+      });
     });
 
     socket.on('chat-message', (data: { message: string }) => {

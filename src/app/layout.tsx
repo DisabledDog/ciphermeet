@@ -2,8 +2,28 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CipherMeet",
-  description: "Video calls that leave no trace. No accounts. No tracking. No data.",
+  title: "CipherMeet — Video Calls That Leave No Trace",
+  description: "Privacy-first video calling. No accounts, no data stored, no trace. End-to-end encrypted, anonymous, and ephemeral.",
+  keywords: ["video call", "encrypted", "private", "anonymous", "no account", "end-to-end encryption", "ephemeral"],
+  authors: [{ name: "SortedTech" }],
+  openGraph: {
+    title: "CipherMeet — Video Calls That Leave No Trace",
+    description: "Privacy-first video calling. No accounts, no data stored, no trace. End-to-end encrypted, anonymous, and ephemeral.",
+    url: "https://ciphermeet.io",
+    siteName: "CipherMeet",
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CipherMeet — Video Calls That Leave No Trace",
+    description: "Privacy-first video calling. No accounts, no data stored, no trace. End-to-end encrypted, anonymous, and ephemeral.",
+  },
+  metadataBase: new URL("https://ciphermeet.io"),
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
