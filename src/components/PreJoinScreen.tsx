@@ -158,6 +158,19 @@ export function PreJoinScreen({ roomId, onJoin, initialPassword, initialError }:
   return (
     <div className="min-h-screen flex items-center justify-center bg-black p-4">
       <div className="w-full max-w-2xl space-y-6">
+        {/* Back to home */}
+        <div className="max-w-lg mx-auto">
+          <button
+            onClick={() => window.location.href = '/'}
+            className="flex items-center gap-2 text-white/25 hover:text-white/60 transition-colors text-xs tracking-[0.15em] uppercase group"
+          >
+            <svg className="w-4 h-4 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
+            </svg>
+            Home
+          </button>
+        </div>
+
         <div className="text-center">
           <h1 className="text-2xl font-light text-white/90 tracking-wide mb-2">Ready to join?</h1>
           <p className="text-white/30 text-sm font-mono tracking-wider">{roomId}</p>
@@ -316,15 +329,6 @@ export function PreJoinScreen({ roomId, onJoin, initialPassword, initialError }:
             {checking ? 'Checking room...' : hasError ? 'Try Again' : 'Join Room'}
           </button>
 
-          {/* Home link when error */}
-          {hasError && (
-            <button
-              onClick={() => window.location.href = '/'}
-              className="w-full py-2 text-white/30 hover:text-white/50 text-xs tracking-wider uppercase transition-colors"
-            >
-              Go Home
-            </button>
-          )}
         </div>
       </div>
     </div>
