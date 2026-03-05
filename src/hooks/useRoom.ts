@@ -446,39 +446,58 @@ export function useRoom(roomId: string) {
     socket.emit('host-mute', { targetPeerId });
   }, []);
 
+  const screenTrackRef = useRef<MediaStreamTrack | null>(null);
+
   const startScreenShare = useCallback(async () => {
+    if (!sendTransportRef.current) {
+      console.error('Screen share: no send transport');
+      return;
+    }
+
     try {
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
+        video: { cursor: 'always' } as any,
         audio: false,
       });
 
       const screenTrack = screenStream.getVideoTracks()[0];
-      if (sendTransportRef.current && screenTrack) {
-        const producer = await sendTransportRef.current.produce({
-          track: screenTrack,
-          appData: { screen: true },
-        });
-        screenProducerIdRef.current = producer.id;
+      if (!screenTrack) return;
 
-        screenTrack.onended = () => {
-          const socket = getSocket();
-          if (screenProducerIdRef.current) {
-            socket.emit('close-producer', { producerId: screenProducerIdRef.current }, () => {});
-            screenProducerIdRef.current = null;
-          }
-          store.setScreenSharing(false);
-        };
+      screenTrackRef.current = screenTrack;
 
-        store.setScreenSharing(true);
-      }
+      const producer = await sendTransportRef.current.produce({
+        track: screenTrack,
+        appData: { screen: true },
+      });
+      screenProducerIdRef.current = producer.id;
+
+      screenTrack.onended = () => {
+        const socket = getSocket();
+        if (screenProducerIdRef.current) {
+          socket.emit('close-producer', { producerId: screenProducerIdRef.current }, () => {});
+          screenProducerIdRef.current = null;
+        }
+        screenTrackRef.current = null;
+        store.setScreenSharing(false);
+      };
+
+      store.setScreenSharing(true);
     } catch (err: any) {
+      // User cancelled the picker — not an error
+      if (err.name === 'NotAllowedError') return;
       console.error('Screen share error:', err);
     }
   }, [store]);
 
   const stopScreenShare = useCallback(() => {
     const socket = getSocket();
+
+    // Stop the actual screen track
+    if (screenTrackRef.current) {
+      screenTrackRef.current.stop();
+      screenTrackRef.current = null;
+    }
+
     if (screenProducerIdRef.current) {
       socket.emit('close-producer', { producerId: screenProducerIdRef.current }, () => {});
       screenProducerIdRef.current = null;

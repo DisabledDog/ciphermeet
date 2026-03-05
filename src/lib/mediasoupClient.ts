@@ -1,6 +1,13 @@
 import { Device } from 'mediasoup-client';
 import type { Transport, RtpCapabilities } from 'mediasoup-client/types';
 import { Socket } from 'socket.io-client';
+import { getE2EEEnabled } from './e2ee';
+
+// Check if browser supports Insertable Streams (needed for E2EE)
+function supportsInsertableStreams(): boolean {
+  return typeof RTCRtpSender !== 'undefined' &&
+    'createEncodedStreams' in RTCRtpSender.prototype;
+}
 
 export async function loadDevice(
   routerRtpCapabilities: RtpCapabilities
@@ -15,11 +22,10 @@ export function createSendTransport(
   transportParams: any,
   socket: Socket
 ): Transport {
+  const useInsertable = getE2EEEnabled() && supportsInsertableStreams();
   const transport = device.createSendTransport({
     ...transportParams,
-    additionalSettings: {
-      encodedInsertableStreams: true,
-    },
+    ...(useInsertable ? { additionalSettings: { encodedInsertableStreams: true } } : {}),
   });
 
   transport.on('connect', ({ dtlsParameters }, callback, errback) => {
@@ -58,11 +64,10 @@ export function createRecvTransport(
   transportParams: any,
   socket: Socket
 ): Transport {
+  const useInsertable = getE2EEEnabled() && supportsInsertableStreams();
   const transport = device.createRecvTransport({
     ...transportParams,
-    additionalSettings: {
-      encodedInsertableStreams: true,
-    },
+    ...(useInsertable ? { additionalSettings: { encodedInsertableStreams: true } } : {}),
   });
 
   transport.on('connect', ({ dtlsParameters }, callback, errback) => {
