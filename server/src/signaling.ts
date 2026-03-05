@@ -124,23 +124,13 @@ export function setupSignaling(io: SocketServer): void {
         }
 
         const transport = await room.createWebRtcTransport();
-        console.log(`[Signaling] Created ${data.direction} transport ${transport.id} for peer ${currentPeerId}`);
-        console.log(`[Signaling] ICE candidates:`, JSON.stringify(transport.iceCandidates));
-        console.log(`[Signaling] Transport appData:`, transport.id);
+        console.log(`[Signaling] Created ${data.direction} transport for peer ${currentPeerId}`);
 
         if (data.direction === 'send') {
           peer.sendTransport = transport;
         } else {
           peer.recvTransport = transport;
         }
-
-        // Log ICE state changes
-        transport.on('icestatechange', (iceState) => {
-          console.log(`[Transport] ${transport.id} ICE state: ${iceState}`);
-        });
-        transport.on('dtlsstatechange', (dtlsState) => {
-          console.log(`[Transport] ${transport.id} DTLS state: ${dtlsState}`);
-        });
 
         callback({
           id: transport.id,
@@ -173,7 +163,6 @@ export function setupSignaling(io: SocketServer): void {
         }
 
         await transport.connect({ dtlsParameters: data.dtlsParameters });
-        console.log(`[Signaling] Connected ${data.direction} transport for peer ${currentPeerId}`);
         callback({});
       } catch (err: any) {
         console.error('[Signaling] connect-transport error:', err);
@@ -200,7 +189,6 @@ export function setupSignaling(io: SocketServer): void {
         });
 
         peer.addProducer(producer);
-        console.log(`[Signaling] Peer ${currentPeerId} producing ${data.kind}`);
 
         producer.on('transportclose', () => {
           peer.removeProducer(producer.id);
@@ -247,7 +235,6 @@ export function setupSignaling(io: SocketServer): void {
         });
 
         peer.addConsumer(consumer);
-        console.log(`[Signaling] Peer ${currentPeerId} consuming ${consumer.kind} from producer ${data.producerId}`);
 
         consumer.on('transportclose', () => {
           peer.removeConsumer(consumer.id);

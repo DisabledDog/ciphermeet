@@ -55,8 +55,6 @@ export function useRoom(roomId: string) {
             });
           });
 
-          console.log(`[useRoom] Consumed ${response.kind} from ${producerInfo.peerId}, track readyState: ${consumer.track.readyState}`);
-
           const peers = useRoomStore.getState().peers;
           const existingPeer = peers.get(producerInfo.peerId);
 
@@ -215,7 +213,7 @@ export function useRoom(roomId: string) {
         store.addChatMessage(message);
       });
 
-      console.log('[useRoom] Listeners registered, joining room...');
+      // Listeners registered, now join
 
       // NOW join the room (listeners are ready to catch events)
       const rtpCapabilities = await new Promise<any>((resolve, reject) => {
@@ -255,7 +253,7 @@ export function useRoom(roomId: string) {
 
       // Recv transport is ready — consume any queued producers
       recvReady = true;
-      console.log(`[useRoom] Recv transport ready. Queued producers: ${pendingProducers.length}`);
+      // Recv transport ready — consume queued producers
       for (const producer of pendingProducers) {
         await consumeProducer(producer);
       }
