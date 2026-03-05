@@ -12,9 +12,11 @@ interface VideoTileProps {
   handRaised?: boolean;
   canMute?: boolean;
   onMute?: () => void;
+  isSpotlight?: boolean;
+  onSpotlight?: () => void;
 }
 
-export function VideoTile({ stream, displayName, isLocal, isMuted, isVideoOff, handRaised, canMute, onMute }: VideoTileProps) {
+export function VideoTile({ stream, displayName, isLocal, isMuted, isVideoOff, handRaised, canMute, onMute, isSpotlight, onSpotlight }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const audioLevel = useAudioLevel(stream, !isMuted);
@@ -53,7 +55,10 @@ export function VideoTile({ stream, displayName, isLocal, isMuted, isVideoOff, h
 
   return (
     <div
-      className={`group relative bg-black rounded-xl overflow-hidden aspect-video flex items-center justify-center transition-all duration-300 ${
+      onClick={onSpotlight}
+      className={`group relative bg-black rounded-xl overflow-hidden flex items-center justify-center transition-all duration-300 cursor-pointer ${
+        isSpotlight ? 'w-full h-full' : 'aspect-video'
+      } ${
         isSpeaking
           ? 'border-2 border-white/40 shadow-[0_0_20px_rgba(255,255,255,0.1)]'
           : 'border border-white/10'
