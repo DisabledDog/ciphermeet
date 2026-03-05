@@ -13,34 +13,40 @@ interface VideoTileProps {
 
 export function VideoTile({ stream, displayName, isLocal, isMuted, isVideoOff }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const audioLevel = useAudioLevel(stream, !isMuted);
   const isSpeaking = audioLevel > 0.15;
 
+  // Video element — always muted (for autoplay), audio handled separately
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !stream) return;
 
     video.srcObject = stream;
+    video.play().catch(() => {});
 
-    // Ensure video plays (handle autoplay restrictions)
-    const playPromise = video.play();
-    if (playPromise) {
-      playPromise.catch(() => {
-        // Autoplay blocked — mute and retry
-        video.muted = true;
-        video.play().catch(() => {});
-      });
-    }
-
-    // Re-trigger play when new tracks are added
     const handleTrack = () => {
       video.play().catch(() => {});
     };
     stream.addEventListener('addtrack', handleTrack);
-    return () => {
-      stream.removeEventListener('addtrack', handleTrack);
-    };
+    return () => stream.removeEventListener('addtrack', handleTrack);
   }, [stream]);
+
+  // Separate audio playback for remote peers (not muted by autoplay policy)
+  useEffect(() => {
+    if (isLocal || !stream) return;
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    audio.srcObject = stream;
+    audio.play().catch(() => {});
+
+    const handleTrack = () => {
+      audio.play().catch(() => {});
+    };
+    stream.addEventListener('addtrack', handleTrack);
+    return () => stream.removeEventListener('addtrack', handleTrack);
+  }, [stream, isLocal]);
 
   return (
     <div
@@ -50,12 +56,15 @@ export function VideoTile({ stream, displayName, isLocal, isMuted, isVideoOff }:
           : 'border border-white/10'
       }`}
     >
+      {/* Hidden audio element for remote peers */}
+      {!isLocal && <audio ref={audioRef} autoPlay playsInline />}
+
       {stream && !isVideoOff ? (
         <video
           ref={videoRef}
           autoPlay
           playsInline
-          muted={isLocal}
+          muted
           className={`w-full h-full object-cover ${isLocal ? 'scale-x-[-1]' : ''}`}
         />
       ) : (
