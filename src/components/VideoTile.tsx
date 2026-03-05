@@ -17,9 +17,29 @@ export function VideoTile({ stream, displayName, isLocal, isMuted, isVideoOff }:
   const isSpeaking = audioLevel > 0.15;
 
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
+    const video = videoRef.current;
+    if (!video || !stream) return;
+
+    video.srcObject = stream;
+
+    // Ensure video plays (handle autoplay restrictions)
+    const playPromise = video.play();
+    if (playPromise) {
+      playPromise.catch(() => {
+        // Autoplay blocked — mute and retry
+        video.muted = true;
+        video.play().catch(() => {});
+      });
     }
+
+    // Re-trigger play when new tracks are added
+    const handleTrack = () => {
+      video.play().catch(() => {});
+    };
+    stream.addEventListener('addtrack', handleTrack);
+    return () => {
+      stream.removeEventListener('addtrack', handleTrack);
+    };
   }, [stream]);
 
   return (

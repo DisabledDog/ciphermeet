@@ -47,14 +47,23 @@ export function useRoom(roomId: string) {
 
           consumersRef.current.set(consumer.id, consumer);
 
+          // Resume the consumer on the server FIRST so media starts flowing
+          await new Promise<void>((res) => {
+            socket.emit('resume-consumer', { consumerId: consumer.id }, (resp: any) => {
+              if (resp?.error) console.error('[useRoom] resume-consumer error:', resp.error);
+              res();
+            });
+          });
+
+          console.log(`[useRoom] Consumed ${response.kind} from ${producerInfo.peerId}, track readyState: ${consumer.track.readyState}`);
+
           const peers = useRoomStore.getState().peers;
           const existingPeer = peers.get(producerInfo.peerId);
 
           // Create a NEW MediaStream so React detects the change
-          const oldStream = existingPeer?.stream;
           const newStream = new MediaStream();
-          if (oldStream) {
-            oldStream.getTracks().forEach((track) => newStream.addTrack(track));
+          if (existingPeer?.stream) {
+            existingPeer.stream.getTracks().forEach((track) => newStream.addTrack(track));
           }
           newStream.addTrack(consumer.track);
 
@@ -72,8 +81,6 @@ export function useRoom(roomId: string) {
             consumers,
             stream: newStream,
           });
-
-          socket.emit('resume-consumer', { consumerId: consumer.id }, () => {});
           resolve();
         }
       );
@@ -208,6 +215,8 @@ export function useRoom(roomId: string) {
         store.addChatMessage(message);
       });
 
+      console.log('[useRoom] Listeners registered, joining room...');
+
       // NOW join the room (listeners are ready to catch events)
       const rtpCapabilities = await new Promise<any>((resolve, reject) => {
         socket.emit(
@@ -246,6 +255,7 @@ export function useRoom(roomId: string) {
 
       // Recv transport is ready — consume any queued producers
       recvReady = true;
+      console.log(`[useRoom] Recv transport ready. Queued producers: ${pendingProducers.length}`);
       for (const producer of pendingProducers) {
         await consumeProducer(producer);
       }
