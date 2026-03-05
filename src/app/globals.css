@@ -60,6 +60,32 @@ body {
   100% { transform: perspective(500px) rotateX(60deg) translateY(50px); }
 }
 
+@keyframes twinkle {
+  0%, 100% { opacity: inherit; }
+  50% { opacity: 0.1; }
+}
+
+@keyframes shootingStar {
+  0% {
+    transform: rotate(var(--angle, 35deg)) translateX(0);
+    opacity: 0;
+  }
+  5% {
+    opacity: 1;
+  }
+  30% {
+    opacity: 1;
+  }
+  50% {
+    transform: rotate(var(--angle, 35deg)) translateX(400px);
+    opacity: 0;
+  }
+  100% {
+    transform: rotate(var(--angle, 35deg)) translateX(400px);
+    opacity: 0;
+  }
+}
+
 .animate-fade-in-up {
   animation: fadeInUp 0.8s ease-out forwards;
 }
@@ -81,6 +107,16 @@ body {
 
 .animate-float {
   animation: float 6s ease-in-out infinite;
+}
+
+@keyframes scrollDot {
+  0% { transform: translateY(0); opacity: 1; }
+  50% { transform: translateY(12px); opacity: 0.3; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.animate-scroll-dot {
+  animation: scrollDot 1.8s ease-in-out infinite;
 }
 
 /* Scrollbar */

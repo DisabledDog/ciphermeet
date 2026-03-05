@@ -1,68 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-
-function GridBackground() {
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {/* Animated grid lines */}
-      <div className="absolute inset-0" style={{
-        backgroundImage: `
-          linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)
-        `,
-        backgroundSize: '60px 60px',
-      }} />
-      {/* Radial fade */}
-      <div className="absolute inset-0 bg-gradient-radial from-transparent via-black/50 to-black" style={{
-        background: 'radial-gradient(ellipse at center, transparent 0%, black 70%)',
-      }} />
-    </div>
-  );
-}
-
-function FloatingParticles() {
-  // Use deterministic positions to avoid SSR hydration mismatch
-  const particles = [
-    { left: 5, top: 12, dur: 4.2, delay: 0.1 },
-    { left: 15, top: 67, dur: 5.8, delay: 1.2 },
-    { left: 22, top: 34, dur: 7.1, delay: 0.5 },
-    { left: 31, top: 89, dur: 4.9, delay: 2.3 },
-    { left: 38, top: 45, dur: 6.3, delay: 0.8 },
-    { left: 44, top: 8, dur: 5.1, delay: 1.9 },
-    { left: 52, top: 73, dur: 7.5, delay: 0.3 },
-    { left: 58, top: 21, dur: 4.6, delay: 2.7 },
-    { left: 65, top: 56, dur: 6.8, delay: 1.1 },
-    { left: 72, top: 91, dur: 5.4, delay: 0.6 },
-    { left: 78, top: 38, dur: 7.2, delay: 2.1 },
-    { left: 83, top: 62, dur: 4.3, delay: 1.5 },
-    { left: 89, top: 15, dur: 6.1, delay: 0.9 },
-    { left: 94, top: 48, dur: 5.7, delay: 2.5 },
-    { left: 11, top: 82, dur: 7.8, delay: 0.4 },
-    { left: 27, top: 5, dur: 4.5, delay: 1.7 },
-    { left: 46, top: 95, dur: 6.6, delay: 0.2 },
-    { left: 61, top: 29, dur: 5.3, delay: 2.9 },
-    { left: 76, top: 71, dur: 7.4, delay: 1.3 },
-    { left: 91, top: 53, dur: 4.8, delay: 0.7 },
-  ];
-
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {particles.map((p, i) => (
-        <div
-          key={i}
-          className="absolute w-1 h-1 bg-white/10 rounded-full"
-          style={{
-            left: `${p.left}%`,
-            top: `${p.top}%`,
-            animation: `float ${p.dur}s ease-in-out ${p.delay}s infinite`,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
+import { InteractiveSky } from '@/components/InteractiveSky';
 
 export default function HomePage() {
   const router = useRouter();
@@ -77,8 +17,12 @@ export default function HomePage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const heroOpacity = Math.max(0, 1 - scrollY / 400);
-  const contentOpacity = Math.min(1, Math.max(0, (scrollY - 200) / 300));
+  const heroOpacity = Math.max(0, 1 - scrollY / 250);
+  const heroScale = 1 + scrollY * 0.0005;
+  const contentOpacity = Math.min(1, Math.max(0, (scrollY - 80) / 180));
+  const contentScale = Math.min(1, 0.92 + (scrollY - 80) * 0.0005);
+  // Horizontal line wipe progress (0 to 1)
+  const wipeProgress = Math.min(1, Math.max(0, (scrollY - 40) / 120));
 
   const handleHost = () => router.push('/host');
 
@@ -91,75 +35,100 @@ export default function HomePage() {
   };
 
   return (
-    <div className="bg-black text-white min-h-[200vh]">
-      {/* Hero Section - Video-like background */}
+    <div className="bg-black text-white min-h-[160vh]">
+      {/* Hero Section with Interactive Sky */}
       <div
-        className="fixed inset-0 flex items-center justify-center transition-opacity duration-300"
-        style={{ opacity: heroOpacity }}
+        className="fixed inset-0 flex items-center justify-center"
+        style={{
+          opacity: heroOpacity,
+          transform: `scale(${heroScale})`,
+          transition: 'opacity 0.1s ease-out',
+        }}
       >
-        <GridBackground />
-        <FloatingParticles />
+        <InteractiveSky />
 
-        {/* Scan line effect */}
+        {/* Subtle scan line */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div
-            className="absolute inset-x-0 h-[2px] bg-white/5"
-            style={{ animation: 'scan 4s linear infinite' }}
+            className="absolute inset-x-0 h-[1px] bg-white/[0.02]"
+            style={{ animation: 'scan 6s linear infinite' }}
           />
         </div>
 
         {/* Hero content */}
-        <div className="relative z-10 text-center px-4">
+        <div className="relative z-10 text-center px-4 pointer-events-none">
           {mounted && (
             <>
               <div className="animate-fade-in-up mb-6">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-black/30 backdrop-blur-md">
                   <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
                   <span className="text-white/60 text-xs tracking-[0.2em] uppercase font-light">Encrypted. Anonymous. Ephemeral.</span>
                 </div>
               </div>
 
-              <h1 className="animate-fade-in-up-delay-1 text-7xl sm:text-8xl font-bold tracking-tighter mb-4">
-                <span className="bg-clip-text text-transparent bg-gradient-to-b from-white to-white/40">
+              <h1 className="animate-fade-in-up-delay-1 text-7xl sm:text-9xl font-bold tracking-tighter mb-4">
+                <span className="bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/30">
                   CIPHER
                 </span>
-                <span className="text-white/20">MEET</span>
+                <span className="text-white/15">MEET</span>
               </h1>
 
               <p className="animate-fade-in-up-delay-2 text-white/30 text-lg tracking-wide font-light max-w-md mx-auto">
                 Video calls that leave no trace.
               </p>
 
-              <div className="animate-fade-in-up-delay-3 mt-12">
-                <svg className="w-6 h-6 mx-auto text-white/20 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
+              <div className="animate-fade-in-up-delay-3 mt-14">
+                <div className="flex flex-col items-center gap-3 cursor-pointer" onClick={() => window.scrollTo({ top: window.innerHeight * 0.6, behavior: 'smooth' })}>
+                  <span className="text-white/40 text-xs tracking-[0.25em] uppercase font-light">Scroll to begin</span>
+                  <div className="w-6 h-10 rounded-full border-2 border-white/20 flex items-start justify-center p-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-white/60 animate-scroll-dot" />
+                  </div>
+                </div>
               </div>
             </>
           )}
         </div>
       </div>
 
-      {/* Spacer for scroll */}
-      <div className="h-screen" />
+      {/* Spacer */}
+      <div className="h-[60vh]" />
 
-      {/* Main content - fades in on scroll */}
+      {/* Horizontal light wipe transition */}
+      <div className="relative z-20 h-20 flex items-center justify-center pointer-events-none">
+        <div
+          className="h-[1px] transition-none"
+          style={{
+            width: `${wipeProgress * 100}%`,
+            background: `linear-gradient(90deg, transparent, rgba(255,255,255,${0.4 * wipeProgress}), transparent)`,
+            boxShadow: wipeProgress > 0.1 ? `0 0 ${20 * wipeProgress}px rgba(255,255,255,${0.15 * wipeProgress}), 0 0 ${60 * wipeProgress}px rgba(255,255,255,${0.05 * wipeProgress})` : 'none',
+          }}
+        />
+      </div>
+
+      {/* Main content */}
       <div
-        className="relative z-20 min-h-screen flex items-center justify-center px-4 py-20"
-        style={{ opacity: contentOpacity }}
+        className="relative z-20 min-h-screen flex items-center justify-center px-4 py-12"
+        style={{
+          opacity: contentOpacity,
+          transform: `scale(${contentScale})`,
+        }}
       >
         <div className="w-full max-w-lg space-y-10">
           {/* Glowing border card */}
-          <div className="relative">
-            {/* Glow effect */}
-            <div className="absolute -inset-[1px] bg-gradient-to-b from-white/20 via-white/5 to-transparent rounded-2xl" />
+          <div className="relative group">
+            <div
+              className="absolute -inset-[1px] rounded-2xl"
+              style={{
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.05) 40%, transparent 100%)',
+                opacity: contentOpacity,
+              }}
+            />
 
-            <div className="relative bg-black rounded-2xl p-8 space-y-8">
-              {/* Actions */}
+            <div className="relative bg-black/90 backdrop-blur-sm rounded-2xl p-8 space-y-8">
               <div className="space-y-4">
                 <button
                   onClick={handleHost}
-                  className="group w-full py-4 bg-white text-black text-base font-semibold rounded-xl transition-all hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:scale-[1.02] active:scale-[0.98]"
+                  className="group w-full py-4 bg-white text-black text-base font-semibold rounded-xl transition-all hover:shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <span className="flex items-center justify-center gap-3">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -169,19 +138,12 @@ export default function HomePage() {
                   </span>
                 </button>
 
-                <button
-                  onClick={handleHost}
-                  className="hidden"
-                />
-
-                {/* Divider */}
                 <div className="flex items-center gap-4">
                   <div className="flex-1 h-px bg-white/10" />
                   <span className="text-white/20 text-xs tracking-[0.15em] uppercase">or join</span>
                   <div className="flex-1 h-px bg-white/10" />
                 </div>
 
-                {/* Join input */}
                 <div className="flex gap-3">
                   <input
                     type="text"
@@ -205,7 +167,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Features - minimal */}
+          {/* Features */}
           <div className="grid grid-cols-3 gap-8">
             <div className="text-center space-y-3">
               <div className="w-px h-8 bg-gradient-to-b from-white/30 to-transparent mx-auto" />
