@@ -15,7 +15,12 @@ export function createSendTransport(
   transportParams: any,
   socket: Socket
 ): Transport {
-  const transport = device.createSendTransport(transportParams);
+  const transport = device.createSendTransport({
+    ...transportParams,
+    additionalSettings: {
+      encodedInsertableStreams: true,
+    },
+  });
 
   transport.on('connect', ({ dtlsParameters }, callback, errback) => {
     socket.emit(
@@ -53,7 +58,12 @@ export function createRecvTransport(
   transportParams: any,
   socket: Socket
 ): Transport {
-  const transport = device.createRecvTransport(transportParams);
+  const transport = device.createRecvTransport({
+    ...transportParams,
+    additionalSettings: {
+      encodedInsertableStreams: true,
+    },
+  });
 
   transport.on('connect', ({ dtlsParameters }, callback, errback) => {
     socket.emit(

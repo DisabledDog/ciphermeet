@@ -7,6 +7,7 @@ import { getSocket, disconnectSocket } from '@/lib/socket';
 import { loadDevice, createSendTransport, createRecvTransport } from '@/lib/mediasoupClient';
 import { useRoomStore } from '@/store/useRoomStore';
 import { RemotePeer, ProducerInfo, ChatMessage } from '@/types';
+import { initE2EE, getSecretFromHash, setupSenderEncryption, setupReceiverDecryption, getE2EEEnabled, cleanupE2EE } from '@/lib/e2ee';
 
 export function useRoom(roomId: string) {
   const store = useRoomStore();
@@ -46,6 +47,11 @@ export function useRoom(roomId: string) {
           });
 
           consumersRef.current.set(consumer.id, consumer);
+
+          // Apply E2EE decryption
+          if (getE2EEEnabled() && consumer.rtpReceiver) {
+            setupReceiverDecryption(consumer.rtpReceiver);
+          }
 
           // Resume the consumer on the server FIRST so media starts flowing
           await new Promise<void>((res) => {
@@ -253,6 +259,12 @@ export function useRoom(roomId: string) {
 
       // Recv transport is ready — consume any queued producers
       recvReady = true;
+      // Initialize E2EE if secret is in URL hash
+      const e2eeSecret = getSecretFromHash();
+      if (e2eeSecret) {
+        await initE2EE(e2eeSecret, roomId);
+      }
+
       // Recv transport ready — consume queued producers
       for (const producer of pendingProducers) {
         await consumeProducer(producer);
@@ -264,10 +276,16 @@ export function useRoom(roomId: string) {
       const videoTrack = stream.getVideoTracks()[0];
 
       if (audioTrack) {
-        await sendTransport.produce({ track: audioTrack });
+        const audioProducer = await sendTransport.produce({ track: audioTrack });
+        if (getE2EEEnabled() && audioProducer.rtpSender) {
+          setupSenderEncryption(audioProducer.rtpSender);
+        }
       }
       if (videoTrack) {
-        await sendTransport.produce({ track: videoTrack });
+        const videoProducer = await sendTransport.produce({ track: videoTrack });
+        if (getE2EEEnabled() && videoProducer.rtpSender) {
+          setupSenderEncryption(videoProducer.rtpSender);
+        }
       }
 
       joinedRef.current = true;
@@ -308,6 +326,7 @@ export function useRoom(roomId: string) {
     socket.removeAllListeners();
     socket.io.removeAllListeners();
     disconnectSocket();
+    cleanupE2EE();
     useRoomStore.getState().reset();
   }, []);
 

@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSocket, disconnectSocket } from '@/lib/socket';
+import { generateRoomSecret } from '@/lib/e2ee';
 
 export default function HostPage() {
   const router = useRouter();
   const [roomId, setRoomId] = useState<string | null>(null);
+  const [e2eeSecret, setE2eeSecret] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [usePassword, setUsePassword] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -42,13 +44,14 @@ export default function HostPage() {
       }
 
       setRoomId(result.roomId!);
+      setE2eeSecret(generateRoomSecret());
     } catch (err: any) {
       setError(err.message || 'Failed to create room');
     }
     setCreating(false);
   };
 
-  const roomLink = roomId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/room/${roomId}` : '';
+  const roomLink = roomId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/room/${roomId}${e2eeSecret ? `#e2e=${e2eeSecret}` : ''}` : '';
 
   const copyLink = () => {
     navigator.clipboard.writeText(roomLink);
@@ -58,7 +61,7 @@ export default function HostPage() {
 
   const joinAsHost = () => {
     if (!roomId) return;
-    router.push(`/room/${roomId}${usePassword && password ? `?p=${encodeURIComponent(password)}` : ''}`);
+    router.push(`/room/${roomId}${usePassword && password ? `?p=${encodeURIComponent(password)}` : ''}${e2eeSecret ? `#e2e=${e2eeSecret}` : ''}`);
   };
 
   return (
