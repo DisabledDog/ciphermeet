@@ -126,7 +126,7 @@ export function setupSignaling(io: SocketServer): void {
         const transport = await room.createWebRtcTransport();
         console.log(`[Signaling] Created ${data.direction} transport ${transport.id} for peer ${currentPeerId}`);
         console.log(`[Signaling] ICE candidates:`, JSON.stringify(transport.iceCandidates));
-        console.log(`[Signaling] Transport tuple:`, JSON.stringify(transport.tuple));
+        console.log(`[Signaling] Transport appData:`, transport.id);
 
         if (data.direction === 'send') {
           peer.sendTransport = transport;
