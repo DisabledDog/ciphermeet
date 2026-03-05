@@ -1,0 +1,39 @@
+{
+  "name": "ciphermeet",
+  "version": "1.0.0",
+  "description": "CipherMeet — Video Calls That Leave No Trace",
+  "main": "main.js",
+  "author": "SortedTech",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:all": "electron-builder --mac --win"
+  },
+  "build": {
+    "appId": "io.ciphermeet.app",
+    "productName": "CipherMeet",
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.video",
+      "icon": "icons/icon.icns",
+      "identity": null
+    },
+    "win": {
+      "target": ["nsis"],
+      "icon": "icons/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  }
+}
