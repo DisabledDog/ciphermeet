@@ -50,10 +50,15 @@ export function useRoom(roomId: string) {
           const peers = useRoomStore.getState().peers;
           const existingPeer = peers.get(producerInfo.peerId);
 
-          const stream = existingPeer?.stream || new MediaStream();
-          stream.addTrack(consumer.track);
+          // Create a NEW MediaStream so React detects the change
+          const oldStream = existingPeer?.stream;
+          const newStream = new MediaStream();
+          if (oldStream) {
+            oldStream.getTracks().forEach((track) => newStream.addTrack(track));
+          }
+          newStream.addTrack(consumer.track);
 
-          const consumers = existingPeer?.consumers || new Map();
+          const consumers = new Map(existingPeer?.consumers || new Map());
           consumers.set(consumer.id, {
             consumerId: consumer.id,
             producerId: producerInfo.producerId,
@@ -65,7 +70,7 @@ export function useRoom(roomId: string) {
             peerId: producerInfo.peerId,
             displayName: existingPeer?.displayName || producerInfo.peerId,
             consumers,
-            stream,
+            stream: newStream,
           });
 
           socket.emit('resume-consumer', { consumerId: consumer.id }, () => {});
@@ -191,13 +196,16 @@ export function useRoom(roomId: string) {
         await consumeProducer(producerInfo);
       });
 
-      // Listen for new peers (update display name)
+      // Listen for new peers (create or update display name)
       socket.on('new-peer', (data: { peerId: string; displayName: string }) => {
         const peers = useRoomStore.getState().peers;
         const existing = peers.get(data.peerId);
-        if (existing) {
-          store.addPeer({ ...existing, displayName: data.displayName });
-        }
+        store.addPeer({
+          peerId: data.peerId,
+          displayName: data.displayName,
+          consumers: existing?.consumers || new Map(),
+          stream: existing?.stream || null,
+        });
       });
 
       // Listen for peers list

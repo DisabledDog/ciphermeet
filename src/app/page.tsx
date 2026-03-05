@@ -36,7 +36,7 @@ export default function HomePage() {
     startValueRef.current = progressRef.current;
     targetRef.current = target;
 
-    const duration = 1000;
+    const duration = 600;
 
     function tick(now: number) {
       const elapsed = now - startTimeRef.current;

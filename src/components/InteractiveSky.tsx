@@ -97,6 +97,7 @@ export function InteractiveSky({ warp = false }: InteractiveSkyProps) {
   const warpRef = useRef(0);
   const warpTargetRef = useRef(0);
   const holdTimeRef = useRef(0);
+  const warpParticlesRef = useRef<{ x: number; y: number; angle: number; speed: number; dist: number; size: number; hue: number; life: number }[]>([]);
 
   useEffect(() => {
     warpTargetRef.current = warp ? 1 : 0;
@@ -262,8 +263,8 @@ export function InteractiveSky({ warp = false }: InteractiveSkyProps) {
       const t = timeRef.current;
       const m = mouseRef.current;
 
-      // Smooth warp transition
-      warpRef.current += (warpTargetRef.current - warpRef.current) * 0.04;
+      // Smooth warp transition (faster ramp)
+      warpRef.current += (warpTargetRef.current - warpRef.current) * 0.07;
       const warpAmount = warpRef.current;
 
       // Track hold time
@@ -333,15 +334,76 @@ export function InteractiveSky({ warp = false }: InteractiveSkyProps) {
         }
       }
 
-      // --- WARP CENTER GLOW ---
+      // --- WARP CENTER GLOW (gentle pulse) ---
       if (warpAmount > 0.05) {
-        const glowSize = warpAmount * 500;
+        const pulse = Math.sin(t * 1.5) * 0.5 + 0.5;
+        const glowSize = warpAmount * (400 + pulse * 60);
         const centerGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowSize);
-        centerGlow.addColorStop(0, `rgba(255, 255, 255, ${warpAmount * 0.15})`);
-        centerGlow.addColorStop(0.2, `rgba(150, 180, 255, ${warpAmount * 0.08})`);
+        centerGlow.addColorStop(0, `rgba(255, 255, 255, ${warpAmount * (0.1 + pulse * 0.04)})`);
+        centerGlow.addColorStop(0.25, `rgba(150, 180, 255, ${warpAmount * 0.05})`);
         centerGlow.addColorStop(1, 'transparent');
         ctx.fillStyle = centerGlow;
         ctx.fillRect(0, 0, w, h);
+
+        // Soft streaming particles from center
+        if (warpAmount > 0.3) {
+          const spawnRate = Math.floor(warpAmount * 2);
+          for (let i = 0; i < spawnRate; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            warpParticlesRef.current.push({
+              x: cx, y: cy, angle,
+              speed: 2 + Math.random() * 4,
+              dist: 0,
+              size: 0.3 + Math.random() * 1,
+              hue: 210 + Math.random() * 30,
+              life: 1,
+            });
+          }
+        }
+
+        // Draw warp particles
+        for (let i = warpParticlesRef.current.length - 1; i >= 0; i--) {
+          const wp = warpParticlesRef.current[i];
+          wp.dist += wp.speed * (1 + warpAmount);
+          wp.life -= dt * 1;
+          if (wp.life <= 0 || wp.dist > Math.max(w, h) * 0.6) {
+            warpParticlesRef.current.splice(i, 1);
+            continue;
+          }
+          const wpx = cx + Math.cos(wp.angle) * wp.dist;
+          const wpy = cy + Math.sin(wp.angle) * wp.dist;
+          const prevX = cx + Math.cos(wp.angle) * (wp.dist - wp.speed * 2);
+          const prevY = cy + Math.sin(wp.angle) * (wp.dist - wp.speed * 2);
+          const wpAlpha = wp.life * warpAmount * 0.3;
+
+          ctx.beginPath();
+          ctx.moveTo(prevX, prevY);
+          ctx.lineTo(wpx, wpy);
+          ctx.strokeStyle = `rgba(180, 200, 255, ${wpAlpha})`;
+          ctx.lineWidth = wp.size;
+          ctx.stroke();
+        }
+        if (warpParticlesRef.current.length > 100) {
+          warpParticlesRef.current.splice(0, warpParticlesRef.current.length - 100);
+        }
+      } else {
+        // Fade out leftover warp particles
+        for (let i = warpParticlesRef.current.length - 1; i >= 0; i--) {
+          const wp = warpParticlesRef.current[i];
+          wp.life -= dt * 3;
+          if (wp.life <= 0) { warpParticlesRef.current.splice(i, 1); continue; }
+          wp.dist += wp.speed;
+          const wpx = cx + Math.cos(wp.angle) * wp.dist;
+          const wpy = cy + Math.sin(wp.angle) * wp.dist;
+          const prevX = cx + Math.cos(wp.angle) * (wp.dist - wp.speed * 2);
+          const prevY = cy + Math.sin(wp.angle) * (wp.dist - wp.speed * 2);
+          ctx.beginPath();
+          ctx.moveTo(prevX, prevY);
+          ctx.lineTo(wpx, wpy);
+          ctx.strokeStyle = `rgba(180, 200, 255, ${wp.life * 0.2})`;
+          ctx.lineWidth = wp.size * wp.life;
+          ctx.stroke();
+        }
       }
 
       // --- STARS ---
@@ -361,22 +423,17 @@ export function InteractiveSky({ warp = false }: InteractiveSkyProps) {
           star.x = star.baseX + Math.cos(angle) * dist * warpAmount * 1.5;
           star.y = star.baseY + Math.sin(angle) * dist * warpAmount * 1.5;
 
-          const streakLen = warpAmount * depth * 50;
+          const streakLen = warpAmount * depth * 45;
           const sx = star.x - Math.cos(angle) * streakLen;
           const sy = star.y - Math.sin(angle) * streakLen;
 
-          const alpha = Math.min(1, star.maxBrightness + warpAmount * 0.5);
-
-          // Colored streaks for variety
-          const r = star.hue === 0 ? 255 : star.hue < 60 ? 255 : 200;
-          const g = star.hue === 0 ? 255 : star.hue < 60 ? 230 : 220;
-          const b = 255;
+          const alpha = Math.min(1, star.maxBrightness + warpAmount * 0.4);
 
           ctx.beginPath();
           ctx.moveTo(sx, sy);
           ctx.lineTo(star.x, star.y);
-          ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-          ctx.lineWidth = star.size * (0.5 + warpAmount * 0.8);
+          ctx.strokeStyle = `rgba(200, 220, 255, ${alpha})`;
+          ctx.lineWidth = star.size * (0.5 + warpAmount * 0.6);
           ctx.stroke();
 
           ctx.beginPath();
@@ -399,27 +456,31 @@ export function InteractiveSky({ warp = false }: InteractiveSkyProps) {
               star.vx -= (dx / dist) * force;
               star.vy -= (dy / dist) * force;
               star.captured = true;
-            } else if (!m.down && dist < 150 && dist > 0) {
-              // Normal repulsion
-              const force = (1 - dist / 150) * 2;
+            } else if (!m.down && dist < 200 && dist > 0) {
+              // Repulsion — wider radius, softer push
+              const force = (1 - dist / 200) * 2.5;
               star.vx += (dx / dist) * force;
               star.vy += (dy / dist) * force;
             }
 
             // Fast mouse movement flings nearby stars
-            if (m.speed > 15 && dist < 100) {
-              const flingForce = (m.speed / 100) * (1 - dist / 100) * 0.8;
-              star.vx += (m.x - m.px) * flingForce * 0.1;
-              star.vy += (m.y - m.py) * flingForce * 0.1;
+            if (m.speed > 8 && dist < 150) {
+              const flingForce = (m.speed / 80) * (1 - dist / 150) * 1;
+              star.vx += (m.x - m.px) * flingForce * 0.12;
+              star.vy += (m.y - m.py) * flingForce * 0.12;
             }
           }
 
+          // Gentle ambient drift so stars are never still
+          star.vx += Math.sin(t * 0.5 + star.twinklePhase) * 0.02;
+          star.vy += Math.cos(t * 0.3 + star.twinklePhase * 1.3) * 0.015;
+
           // Spring back to base position
-          const springForce = star.captured ? 0.005 : 0.02;
+          const springForce = star.captured ? 0.005 : 0.018;
           star.vx += (targetX - star.x) * springForce;
           star.vy += (targetY - star.y) * springForce;
-          star.vx *= 0.93;
-          star.vy *= 0.93;
+          star.vx *= 0.94;
+          star.vy *= 0.94;
           star.x += star.vx;
           star.y += star.vy;
 
