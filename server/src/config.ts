@@ -53,7 +53,7 @@ export const config = {
       maxSctpMessageSize: 262144,
       enableUdp: true,
       enableTcp: true,
-      preferUdp: true,
+      preferTcp: true,
     } as WebRtcTransportOptions,
 
   },
