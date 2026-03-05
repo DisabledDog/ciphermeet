@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CipherMeet - Private Video Chat",
-  description: "Anonymous, private video chat. No accounts, no tracking, no data stored.",
+  title: "CipherMeet",
+  description: "Video calls that leave no trace. No accounts. No tracking. No data.",
 };
 
 export default function RootLayout({
