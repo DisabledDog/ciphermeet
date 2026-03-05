@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { PageTracker } from "@/components/PageTracker";
 
 export const metadata: Metadata = {
   title: "CipherMeet — Video Calls That Leave No Trace",
@@ -33,7 +34,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <PageTracker />
+        {children}
+      </body>
     </html>
   );
 }
