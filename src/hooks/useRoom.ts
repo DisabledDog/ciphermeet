@@ -134,7 +134,81 @@ export function useRoom(roomId: string) {
       });
       store.setLocalStream(stream);
 
-      // Join the room
+      // Queue to hold producers that arrive before recv transport is ready
+      const pendingProducers: ProducerInfo[] = [];
+      let recvReady = false;
+
+      // Register ALL listeners BEFORE join-room so we never miss events
+      socket.on('existing-producers', async (producers: ProducerInfo[]) => {
+        if (!recvReady) {
+          pendingProducers.push(...producers);
+        } else {
+          for (const producer of producers) {
+            await consumeProducer(producer);
+          }
+        }
+      });
+
+      socket.on('new-producer', async (producerInfo: ProducerInfo) => {
+        if (!recvReady) {
+          pendingProducers.push(producerInfo);
+        } else {
+          await consumeProducer(producerInfo);
+        }
+      });
+
+      socket.on('new-peer', (data: { peerId: string; displayName: string }) => {
+        const peers = useRoomStore.getState().peers;
+        const existing = peers.get(data.peerId);
+        store.addPeer({
+          peerId: data.peerId,
+          displayName: data.displayName,
+          consumers: existing?.consumers || new Map(),
+          stream: existing?.stream || null,
+        });
+      });
+
+      socket.on('peers-list', (peersList: { peerId: string; displayName: string }[]) => {
+        for (const p of peersList) {
+          if (p.peerId === peerId) continue;
+          const peers = useRoomStore.getState().peers;
+          if (!peers.has(p.peerId)) {
+            store.addPeer({
+              peerId: p.peerId,
+              displayName: p.displayName,
+              consumers: new Map(),
+              stream: null,
+            });
+          }
+        }
+      });
+
+      socket.on('producer-closed', (data: { peerId: string; producerId: string }) => {
+        for (const [consumerId, consumer] of consumersRef.current) {
+          if (consumer.producerId === data.producerId) {
+            consumer.close();
+            consumersRef.current.delete(consumerId);
+          }
+        }
+      });
+
+      socket.on('consumer-closed', (data: { consumerId: string }) => {
+        const consumer = consumersRef.current.get(data.consumerId);
+        if (consumer) {
+          consumer.close();
+          consumersRef.current.delete(data.consumerId);
+        }
+      });
+
+      socket.on('peer-left', (data: { peerId: string }) => {
+        store.removePeer(data.peerId);
+      });
+
+      socket.on('chat-message', (message: ChatMessage) => {
+        store.addChatMessage(message);
+      });
+
+      // NOW join the room (listeners are ready to catch events)
       const rtpCapabilities = await new Promise<any>((resolve, reject) => {
         socket.emit(
           'join-room',
@@ -170,6 +244,13 @@ export function useRoom(roomId: string) {
       const recvTransport = createRecvTransport(device, recvTransportParams, socket);
       recvTransportRef.current = recvTransport;
 
+      // Recv transport is ready — consume any queued producers
+      recvReady = true;
+      for (const producer of pendingProducers) {
+        await consumeProducer(producer);
+      }
+      pendingProducers.length = 0;
+
       // Produce local tracks
       const audioTrack = stream.getAudioTracks()[0];
       const videoTrack = stream.getVideoTracks()[0];
@@ -183,75 +264,6 @@ export function useRoom(roomId: string) {
 
       joinedRef.current = true;
       store.setConnectionState('connected');
-
-      // Listen for existing producers
-      socket.on('existing-producers', async (producers: ProducerInfo[]) => {
-        for (const producer of producers) {
-          await consumeProducer(producer);
-        }
-      });
-
-      // Listen for new producers
-      socket.on('new-producer', async (producerInfo: ProducerInfo) => {
-        await consumeProducer(producerInfo);
-      });
-
-      // Listen for new peers (create or update display name)
-      socket.on('new-peer', (data: { peerId: string; displayName: string }) => {
-        const peers = useRoomStore.getState().peers;
-        const existing = peers.get(data.peerId);
-        store.addPeer({
-          peerId: data.peerId,
-          displayName: data.displayName,
-          consumers: existing?.consumers || new Map(),
-          stream: existing?.stream || null,
-        });
-      });
-
-      // Listen for peers list
-      socket.on('peers-list', (peersList: { peerId: string; displayName: string }[]) => {
-        for (const p of peersList) {
-          if (p.peerId === peerId) continue;
-          const peers = useRoomStore.getState().peers;
-          if (!peers.has(p.peerId)) {
-            store.addPeer({
-              peerId: p.peerId,
-              displayName: p.displayName,
-              consumers: new Map(),
-              stream: null,
-            });
-          }
-        }
-      });
-
-      // Listen for producer closed
-      socket.on('producer-closed', (data: { peerId: string; producerId: string }) => {
-        for (const [consumerId, consumer] of consumersRef.current) {
-          if (consumer.producerId === data.producerId) {
-            consumer.close();
-            consumersRef.current.delete(consumerId);
-          }
-        }
-      });
-
-      // Listen for consumer closed
-      socket.on('consumer-closed', (data: { consumerId: string }) => {
-        const consumer = consumersRef.current.get(data.consumerId);
-        if (consumer) {
-          consumer.close();
-          consumersRef.current.delete(data.consumerId);
-        }
-      });
-
-      // Listen for peer left
-      socket.on('peer-left', (data: { peerId: string }) => {
-        store.removePeer(data.peerId);
-      });
-
-      // Chat messages
-      socket.on('chat-message', (message: ChatMessage) => {
-        store.addChatMessage(message);
-      });
 
     } catch (err: any) {
       console.error('Failed to join room:', err);
