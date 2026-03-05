@@ -12,18 +12,22 @@ export class Room {
   id: string;
   router: Router;
   peers: Map<string, Peer> = new Map();
+  password: string | null = null;
+  hostPeerId: string | null = null;
 
   private constructor(id: string, router: Router) {
     this.id = id;
     this.router = router;
   }
 
-  static async create(id: string, worker: Worker): Promise<Room> {
+  static async create(id: string, worker: Worker, password?: string): Promise<Room> {
     const router = await worker.createRouter({
       mediaCodecs: config.mediasoup.routerMediaCodecs,
     });
+    const room = new Room(id, router);
+    room.password = password || null;
     console.log(`[Room] Created room ${id}`);
-    return new Room(id, router);
+    return room;
   }
 
   get peerCount(): number {
@@ -34,11 +38,19 @@ export class Room {
     return this.peers.size >= MAX_PEERS;
   }
 
+  checkPassword(password?: string): boolean {
+    if (!this.password) return true;
+    return this.password === password;
+  }
+
   addPeer(peer: Peer): void {
     if (this.isFull()) {
       throw new Error('Room is full');
     }
     this.peers.set(peer.id, peer);
+    if (!this.hostPeerId) {
+      this.hostPeerId = peer.id;
+    }
     console.log(`[Room] Peer joined room ${this.id}. Total: ${this.peers.size}`);
   }
 
@@ -47,6 +59,10 @@ export class Room {
     if (peer) {
       peer.close();
       this.peers.delete(peerId);
+      if (this.hostPeerId === peerId) {
+        const next = this.peers.values().next();
+        this.hostPeerId = next.done ? null : next.value.id;
+      }
       console.log(`[Room] Peer left room ${this.id}. Total: ${this.peers.size}`);
     }
     return peer;

@@ -47,7 +47,6 @@ export function useRoom(roomId: string) {
 
           consumersRef.current.set(consumer.id, consumer);
 
-          // Get or create the peer entry
           const peers = useRoomStore.getState().peers;
           const existingPeer = peers.get(producerInfo.peerId);
 
@@ -69,7 +68,6 @@ export function useRoom(roomId: string) {
             stream,
           });
 
-          // Resume the consumer
           socket.emit('resume-consumer', { consumerId: consumer.id }, () => {});
           resolve();
         }
@@ -77,7 +75,7 @@ export function useRoom(roomId: string) {
     });
   }, [store]);
 
-  const joinRoom = useCallback(async () => {
+  const joinRoom = useCallback(async (password?: string) => {
     if (joinedRef.current) return;
 
     const socket = getSocket();
@@ -86,18 +84,33 @@ export function useRoom(roomId: string) {
 
     store.setPeerId(peerId);
     store.setRoomId(roomId);
-
     store.setConnectionState('connecting');
-    socket.connect();
+    store.setError(null);
 
-    // Connection state listeners
-    socket.on('connect', () => {
-      if (joinedRef.current) {
-        store.setConnectionState('connected');
-      }
-    });
+    // Wait for socket to actually connect before emitting events
+    if (!socket.connected) {
+      socket.connect();
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Connection timed out. Server may be unavailable.'));
+        }, 10000);
+        socket.once('connect', () => {
+          clearTimeout(timeout);
+          resolve();
+        });
+        socket.once('connect_error', (err) => {
+          clearTimeout(timeout);
+          reject(new Error('Could not connect to server.'));
+        });
+      });
+    }
+
+    // Connection state listeners for reconnection
     socket.on('disconnect', () => {
       store.setConnectionState('reconnecting');
+    });
+    socket.io.on('reconnect', () => {
+      store.setConnectionState('connected');
     });
     socket.io.on('reconnect_failed', () => {
       store.setConnectionState('disconnected');
@@ -120,7 +133,7 @@ export function useRoom(roomId: string) {
       const rtpCapabilities = await new Promise<any>((resolve, reject) => {
         socket.emit(
           'join-room',
-          { roomId, peerId, displayName },
+          { roomId, peerId, displayName, password },
           (response: any) => {
             if (response.error) reject(new Error(response.error));
             else resolve(response.rtpCapabilities);
@@ -205,7 +218,6 @@ export function useRoom(roomId: string) {
 
       // Listen for producer closed
       socket.on('producer-closed', (data: { peerId: string; producerId: string }) => {
-        // Find and close the matching consumer
         for (const [consumerId, consumer] of consumersRef.current) {
           if (consumer.producerId === data.producerId) {
             consumer.close();
@@ -236,19 +248,18 @@ export function useRoom(roomId: string) {
     } catch (err: any) {
       console.error('Failed to join room:', err);
       store.setError(err.message || 'Failed to join room');
+      store.setConnectionState('disconnected');
     }
   }, [roomId, store, consumeProducer]);
 
   const leaveRoom = useCallback(() => {
     const socket = getSocket();
 
-    // Close all consumers
     for (const consumer of consumersRef.current.values()) {
       consumer.close();
     }
     consumersRef.current.clear();
 
-    // Close transports
     if (sendTransportRef.current) {
       sendTransportRef.current.close();
       sendTransportRef.current = null;
@@ -258,7 +269,6 @@ export function useRoom(roomId: string) {
       recvTransportRef.current = null;
     }
 
-    // Stop local tracks
     const localStream = useRoomStore.getState().localStream;
     if (localStream) {
       localStream.getTracks().forEach((track) => track.stop());
@@ -268,6 +278,7 @@ export function useRoom(roomId: string) {
     joinedRef.current = false;
 
     socket.removeAllListeners();
+    socket.io.removeAllListeners();
     disconnectSocket();
     store.reset();
   }, [store]);
@@ -293,7 +304,6 @@ export function useRoom(roomId: string) {
         screenProducerIdRef.current = producer.id;
 
         screenTrack.onended = () => {
-          // Close the producer on the server when the user stops via browser UI
           const socket = getSocket();
           if (screenProducerIdRef.current) {
             socket.emit('close-producer', { producerId: screenProducerIdRef.current }, () => {});
@@ -318,7 +328,6 @@ export function useRoom(roomId: string) {
     store.setScreenSharing(false);
   }, [store]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (joinedRef.current) {

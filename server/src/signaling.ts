@@ -10,8 +10,39 @@ export function setupSignaling(io: SocketServer): void {
 
     console.log(`[Signaling] Socket connected`);
 
+    // Host creates a room and gets back the room code
+    socket.on('create-room', async (
+      data: { password?: string },
+      callback: (response: { roomId?: string; error?: string }) => void
+    ) => {
+      try {
+        const room = await createRoom(undefined, data.password);
+        callback({ roomId: room.id });
+      } catch (err: any) {
+        console.error('[Signaling] create-room error:', err);
+        callback({ error: err.message });
+      }
+    });
+
+    // Check if a room exists and whether it needs a password
+    socket.on('room-info', (
+      data: { roomId: string },
+      callback: (response: { exists: boolean; hasPassword: boolean; peerCount: number }) => void
+    ) => {
+      const room = getRoom(data.roomId);
+      if (!room) {
+        callback({ exists: false, hasPassword: false, peerCount: 0 });
+        return;
+      }
+      callback({
+        exists: true,
+        hasPassword: !!room.password,
+        peerCount: room.peerCount,
+      });
+    });
+
     socket.on('join-room', async (
-      data: { roomId: string; peerId: string; displayName: string },
+      data: { roomId: string; peerId: string; displayName: string; password?: string },
       callback: (response: { rtpCapabilities?: RtpCapabilities; error?: string }) => void
     ) => {
       try {
@@ -19,7 +50,13 @@ export function setupSignaling(io: SocketServer): void {
 
         let room = getRoom(roomId);
         if (!room) {
+          // Auto-create room if it doesn't exist (for direct link joins)
           room = await createRoom(roomId);
+        }
+
+        if (!room.checkPassword(data.password)) {
+          callback({ error: 'Incorrect password' });
+          return;
         }
 
         if (room.isFull()) {
@@ -192,7 +229,7 @@ export function setupSignaling(io: SocketServer): void {
         const consumer = await peer.recvTransport.consume({
           producerId: data.producerId,
           rtpCapabilities: data.rtpCapabilities,
-          paused: true, // Start paused, resume after client is ready
+          paused: true,
         });
 
         peer.addConsumer(consumer);
@@ -306,7 +343,6 @@ export function setupSignaling(io: SocketServer): void {
             });
           }
 
-          // Clean up empty room
           if (room.peerCount === 0) {
             deleteRoom(currentRoomId);
           }

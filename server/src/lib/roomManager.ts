@@ -3,14 +3,26 @@ import { getNextWorker } from './workerManager';
 
 const rooms: Map<string, Room> = new Map();
 
-export async function createRoom(roomId: string): Promise<Room> {
-  if (rooms.has(roomId)) {
-    return rooms.get(roomId)!;
+function generateRoomCode(): string {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  const segments = [3, 4, 3];
+  return segments
+    .map((len) =>
+      Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+    )
+    .join('-');
+}
+
+export async function createRoom(roomId?: string, password?: string): Promise<Room> {
+  const id = roomId || generateRoomCode();
+
+  if (rooms.has(id)) {
+    return rooms.get(id)!;
   }
 
   const worker = getNextWorker();
-  const room = await Room.create(roomId, worker);
-  rooms.set(roomId, room);
+  const room = await Room.create(id, worker, password);
+  rooms.set(id, room);
   return room;
 }
 
@@ -23,7 +35,7 @@ export function deleteRoom(roomId: string): void {
   if (room) {
     room.close();
     rooms.delete(roomId);
-    console.log(`[RoomManager] Room ${roomId} deleted`);
+    console.log(`[RoomManager] Room deleted`);
   }
 }
 

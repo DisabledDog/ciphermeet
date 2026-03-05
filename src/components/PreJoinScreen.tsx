@@ -1,14 +1,17 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { getSocket, disconnectSocket } from '@/lib/socket';
 
 interface PreJoinScreenProps {
   roomId: string;
-  onJoin: (displayName: string) => void;
+  onJoin: (displayName: string, password?: string) => void;
+  initialPassword?: string;
 }
 
-export function PreJoinScreen({ roomId, onJoin }: PreJoinScreenProps) {
+export function PreJoinScreen({ roomId, onJoin, initialPassword }: PreJoinScreenProps) {
   const [name, setName] = useState('');
+  const [password, setPassword] = useState(initialPassword || '');
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
@@ -16,10 +19,41 @@ export function PreJoinScreen({ roomId, onJoin }: PreJoinScreenProps) {
   const [selectedAudioDevice, setSelectedAudioDevice] = useState('');
   const [selectedVideoDevice, setSelectedVideoDevice] = useState('');
   const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [roomInfo, setRoomInfo] = useState<{ exists: boolean; hasPassword: boolean; peerCount: number } | null>(null);
+  const [checking, setChecking] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Check room info
+  useEffect(() => {
+    const checkRoom = async () => {
+      try {
+        const socket = getSocket();
+        socket.connect();
+
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => { resolve(); }, 5000);
+          socket.once('connect', () => { clearTimeout(timeout); resolve(); });
+          if (socket.connected) { clearTimeout(timeout); resolve(); }
+        });
+
+        if (socket.connected) {
+          socket.emit('room-info', { roomId }, (info: any) => {
+            setRoomInfo(info);
+            setChecking(false);
+            socket.removeAllListeners();
+            disconnectSocket();
+          });
+        } else {
+          setChecking(false);
+        }
+      } catch {
+        setChecking(false);
+      }
+    };
+    checkRoom();
+  }, [roomId]);
+
   const startPreview = async (audioDeviceId?: string, videoDeviceId?: string) => {
-    // Stop existing stream
     if (previewStream) {
       previewStream.getTracks().forEach((t) => t.stop());
     }
@@ -35,7 +69,6 @@ export function PreJoinScreen({ roomId, onJoin }: PreJoinScreenProps) {
       setPreviewStream(stream);
       setPermissionError(null);
 
-      // Enumerate devices after getting permission
       const allDevices = await navigator.mediaDevices.enumerateDevices();
       setDevices({
         audio: allDevices.filter((d) => d.kind === 'audioinput'),
@@ -52,9 +85,6 @@ export function PreJoinScreen({ roomId, onJoin }: PreJoinScreenProps) {
 
   useEffect(() => {
     startPreview();
-    return () => {
-      // Cleanup handled in handleJoin or on unmount
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -90,19 +120,23 @@ export function PreJoinScreen({ roomId, onJoin }: PreJoinScreenProps) {
 
   const handleJoin = () => {
     if (!name.trim()) return;
-    // Stop the preview stream — useRoom will create its own
     if (previewStream) {
       previewStream.getTracks().forEach((t) => t.stop());
     }
-    onJoin(name.trim());
+    onJoin(name.trim(), roomInfo?.hasPassword ? password : undefined);
   };
+
+  const needsPassword = roomInfo?.hasPassword && !initialPassword;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-950 p-4">
       <div className="w-full max-w-2xl space-y-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-white mb-1">Ready to join?</h1>
-          <p className="text-gray-400 text-sm">Preview your camera and microphone before entering</p>
+          <p className="text-gray-500 text-sm font-mono">{roomId}</p>
+          {roomInfo && roomInfo.exists && roomInfo.peerCount > 0 && (
+            <p className="text-gray-400 text-xs mt-1">{roomInfo.peerCount} participant{roomInfo.peerCount !== 1 ? 's' : ''} in room</p>
+          )}
         </div>
 
         {/* Video preview */}
@@ -203,25 +237,39 @@ export function PreJoinScreen({ roomId, onJoin }: PreJoinScreenProps) {
           </div>
         ) : null}
 
-        {/* Name + Join */}
+        {/* Name + Password + Join */}
         <div className="max-w-lg mx-auto space-y-3">
           <input
             type="text"
-            placeholder="Enter your name"
+            placeholder="Your name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && name.trim()) handleJoin();
             }}
-            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
+            className="w-full px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-center"
             autoFocus
           />
+
+          {needsPassword && (
+            <input
+              type="password"
+              placeholder="Room password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && name.trim()) handleJoin();
+              }}
+              className="w-full px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-center"
+            />
+          )}
+
           <button
             onClick={handleJoin}
-            disabled={!name.trim()}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium rounded-lg transition-colors"
+            disabled={!name.trim() || (needsPassword && !password.trim()) || checking}
+            className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-800 disabled:text-gray-500 text-white font-semibold rounded-xl transition-all"
           >
-            Join Room
+            {checking ? 'Checking room...' : 'Join Room'}
           </button>
         </div>
       </div>
