@@ -207,11 +207,36 @@ export function useRoom(roomId: string) {
       });
 
       socket.on('producer-closed', (data: { peerId: string; producerId: string }) => {
+        // Close and remove the consumer for this producer
         for (const [consumerId, consumer] of consumersRef.current) {
           if (consumer.producerId === data.producerId) {
             consumer.close();
             consumersRef.current.delete(consumerId);
           }
+        }
+
+        // Rebuild the peer's stream without the closed track
+        const peers = useRoomStore.getState().peers;
+        const peer = peers.get(data.peerId);
+        if (peer) {
+          const updatedConsumers = new Map(peer.consumers);
+          for (const [cid, c] of updatedConsumers) {
+            if (c.producerId === data.producerId) {
+              updatedConsumers.delete(cid);
+            }
+          }
+          const newStream = new MediaStream();
+          for (const c of updatedConsumers.values()) {
+            if (c.track.readyState === 'live') {
+              newStream.addTrack(c.track);
+            }
+          }
+          store.addPeer({
+            peerId: data.peerId,
+            displayName: peer.displayName,
+            consumers: updatedConsumers,
+            stream: newStream.getTracks().length > 0 ? newStream : null,
+          });
         }
       });
 
@@ -221,9 +246,43 @@ export function useRoom(roomId: string) {
           consumer.close();
           consumersRef.current.delete(data.consumerId);
         }
+
+        // Also clean up from the peer's state
+        const peers = useRoomStore.getState().peers;
+        for (const [peerId, peer] of peers) {
+          if (peer.consumers.has(data.consumerId)) {
+            const updatedConsumers = new Map(peer.consumers);
+            updatedConsumers.delete(data.consumerId);
+            const newStream = new MediaStream();
+            for (const c of updatedConsumers.values()) {
+              if (c.track.readyState === 'live') {
+                newStream.addTrack(c.track);
+              }
+            }
+            store.addPeer({
+              peerId,
+              displayName: peer.displayName,
+              consumers: updatedConsumers,
+              stream: newStream.getTracks().length > 0 ? newStream : null,
+            });
+            break;
+          }
+        }
       });
 
       socket.on('peer-left', (data: { peerId: string }) => {
+        // Close all consumers for this peer
+        const peers = useRoomStore.getState().peers;
+        const peer = peers.get(data.peerId);
+        if (peer) {
+          for (const c of peer.consumers.values()) {
+            const consumer = consumersRef.current.get(c.consumerId);
+            if (consumer) {
+              consumer.close();
+              consumersRef.current.delete(c.consumerId);
+            }
+          }
+        }
         store.removePeer(data.peerId);
       });
 
