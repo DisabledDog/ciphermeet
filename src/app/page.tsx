@@ -259,6 +259,19 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* Donation link */}
+      <a
+        href="https://buymeacoffee.com/ciphermeet"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-4 right-4 z-50 flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 bg-black/50 backdrop-blur-sm text-white/30 hover:text-white/60 hover:border-white/20 transition-all text-[10px] tracking-wider uppercase"
+      >
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        </svg>
+        Donate
+      </a>
     </div>
   );
 }

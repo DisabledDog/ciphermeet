@@ -127,6 +127,64 @@ export function PreJoinScreen({ roomId, onJoin, initialPassword }: PreJoinScreen
 
   const needsPassword = roomInfo?.hasPassword && !initialPassword;
 
+  // Room doesn't exist and no one is in it
+  if (!checking && roomInfo && !roomInfo.exists) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black p-4">
+        <div className="w-full max-w-md text-center space-y-6">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl border border-white/10 bg-white/5 mb-2">
+            <svg className="w-7 h-7 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 2a10 10 0 110 20 10 10 0 010-20z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-light text-white/90 tracking-wide">Room Not Found</h1>
+          <p className="text-white/30 text-sm font-light">
+            The room <span className="font-mono text-white/50">{roomId}</span> doesn&apos;t exist or has expired.
+          </p>
+          <div className="pt-2 space-y-3">
+            <button
+              onClick={() => window.location.href = '/'}
+              className="w-full py-3.5 bg-white text-black font-semibold rounded-xl transition-all hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:scale-[1.02] active:scale-[0.98]"
+            >
+              Go Home
+            </button>
+            <button
+              onClick={() => { setChecking(true); setRoomInfo(null); const socket = getSocket(); socket.connect(); const waitConnect = () => { if (socket.connected) { socket.emit('room-info', { roomId }, (info: any) => { setRoomInfo(info); setChecking(false); socket.removeAllListeners(); disconnectSocket(); }); } else { setTimeout(waitConnect, 500); } }; waitConnect(); }}
+              className="w-full py-3 border border-white/15 text-white/50 font-light rounded-xl transition-all hover:bg-white/5 hover:text-white/70 text-sm"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Connection to server failed
+  if (!checking && !roomInfo) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black p-4">
+        <div className="w-full max-w-md text-center space-y-6">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl border border-white/10 bg-white/5 mb-2">
+            <svg className="w-7 h-7 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01M12 2a10 10 0 110 20 10 10 0 010-20z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-light text-white/90 tracking-wide">Can&apos;t Connect</h1>
+          <p className="text-white/30 text-sm font-light">
+            Unable to reach the server. Please check your connection and try again.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="w-full py-3.5 bg-white text-black font-semibold rounded-xl transition-all hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:scale-[1.02] active:scale-[0.98]"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-black p-4">
       <div className="w-full max-w-2xl space-y-6">
