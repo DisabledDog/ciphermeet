@@ -20,20 +20,17 @@ function getGridCols(count: number): string {
 
 export function VideoGrid({ localStream, peers, displayName, isVideoEnabled }: VideoGridProps) {
   const peerArray = Array.from(peers.values());
-  const totalParticipants = 1 + peerArray.length; // local + remote
+  const totalParticipants = 1 + peerArray.length;
   const gridCols = getGridCols(totalParticipants);
 
   return (
-    <div className={`flex-1 p-4 grid ${gridCols} gap-2 auto-rows-fr`}>
-      {/* Local video */}
+    <div className={`flex-1 p-3 grid ${gridCols} gap-3 auto-rows-fr`}>
       <VideoTile
         stream={localStream}
         displayName={displayName}
         isLocal
         isVideoOff={!isVideoEnabled}
       />
-
-      {/* Remote videos */}
       {peerArray.map((peer) => (
         <VideoTile
           key={peer.peerId}

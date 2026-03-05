@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSocket, disconnectSocket } from '@/lib/socket';
 
@@ -32,7 +32,6 @@ export default function HostPage() {
         socket.emit('create-room', { password: usePassword ? password : undefined }, resolve);
       });
 
-      // Disconnect — we'll reconnect when joining the room
       socket.removeAllListeners();
       disconnectSocket();
 
@@ -59,116 +58,123 @@ export default function HostPage() {
 
   const joinAsHost = () => {
     if (!roomId) return;
-    // Pass password in URL state so the pre-join screen can use it
     router.push(`/room/${roomId}${usePassword && password ? `?p=${encodeURIComponent(password)}` : ''}`);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-black p-4">
       <div className="w-full max-w-lg space-y-8">
         {/* Back button */}
         <button
           onClick={() => router.push('/')}
-          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm"
+          className="flex items-center gap-2 text-white/30 hover:text-white/70 transition-colors text-sm tracking-wide"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
           </svg>
           Back
         </button>
 
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-white">Host a Room</h1>
-          <p className="text-gray-400">Set up your room and share the link with participants</p>
+          <h1 className="text-3xl font-light text-white/90 tracking-wide">Host a Room</h1>
+          <p className="text-white/30 text-sm font-light tracking-wide">Set up your room and share the link</p>
         </div>
 
         {!roomId ? (
-          /* Setup phase */
-          <div className="space-y-6 bg-gray-900/50 border border-gray-800 rounded-2xl p-6">
-            {/* Password toggle */}
-            <div className="space-y-3">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <div
-                  onClick={() => setUsePassword(!usePassword)}
-                  className={`w-11 h-6 rounded-full transition-colors relative ${usePassword ? 'bg-blue-600' : 'bg-gray-700'}`}
-                >
-                  <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${usePassword ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
-                </div>
-                <span className="text-white text-sm font-medium">Require password to join</span>
-              </label>
+          <div className="relative">
+            <div className="absolute -inset-[1px] bg-gradient-to-b from-white/20 via-white/5 to-transparent rounded-2xl" />
+            <div className="relative bg-black rounded-2xl p-6 space-y-6">
+              {/* Password toggle */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <div
+                    onClick={() => setUsePassword(!usePassword)}
+                    className={`w-11 h-6 rounded-full transition-colors relative ${usePassword ? 'bg-white' : 'bg-white/10'}`}
+                  >
+                    <div className={`w-5 h-5 rounded-full absolute top-0.5 transition-transform ${
+                      usePassword ? 'translate-x-[22px] bg-black' : 'translate-x-0.5 bg-white/40'
+                    }`} />
+                  </div>
+                  <span className="text-white/70 text-sm font-light tracking-wide">Require password to join</span>
+                </label>
 
-              {usePassword && (
-                <input
-                  type="text"
-                  placeholder="Set a room password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
-                  autoFocus
-                />
-              )}
-            </div>
-
-            {error && (
-              <div className="bg-red-900/30 border border-red-800/50 text-red-400 px-4 py-2 rounded-lg text-sm">
-                {error}
+                {usePassword && (
+                  <input
+                    type="text"
+                    placeholder="Set a room password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:border-white/30 transition-all font-light"
+                    autoFocus
+                  />
+                )}
               </div>
-            )}
 
-            <button
-              onClick={createRoom}
-              disabled={creating || (usePassword && !password.trim())}
-              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold rounded-xl transition-all"
-            >
-              {creating ? 'Creating...' : 'Create Room'}
-            </button>
+              {error && (
+                <div className="border border-red-500/20 bg-red-500/5 text-red-400/80 px-4 py-2.5 rounded-xl text-sm font-light">
+                  {error}
+                </div>
+              )}
+
+              <button
+                onClick={createRoom}
+                disabled={creating || (usePassword && !password.trim())}
+                className="group w-full py-3.5 bg-white text-black font-semibold rounded-xl transition-all hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:scale-[1.02] active:scale-[0.98] disabled:bg-white/5 disabled:text-white/20 disabled:shadow-none disabled:scale-100"
+              >
+                {creating ? 'Creating...' : 'Create Room'}
+              </button>
+            </div>
           </div>
         ) : (
-          /* Room created — share phase */
-          <div className="space-y-6">
-            <div className="bg-gray-900/50 border border-gray-800 rounded-2xl p-6 space-y-5">
-              {/* Room code */}
-              <div className="text-center">
-                <p className="text-gray-400 text-xs uppercase tracking-wider mb-2">Room Code</p>
-                <p className="text-3xl font-mono font-bold text-white tracking-wider">{roomId}</p>
-              </div>
+          <div className="space-y-6 animate-fade-in-up">
+            <div className="relative">
+              <div className="absolute -inset-[1px] bg-gradient-to-b from-white/20 via-white/5 to-transparent rounded-2xl" />
+              <div className="relative bg-black rounded-2xl p-6 space-y-6">
+                {/* Room code */}
+                <div className="text-center">
+                  <p className="text-white/30 text-[10px] uppercase tracking-[0.2em] mb-3">Room Code</p>
+                  <p className="text-3xl font-mono font-bold text-white tracking-wider">{roomId}</p>
+                </div>
 
-              {/* Shareable link */}
-              <div>
-                <p className="text-gray-400 text-xs uppercase tracking-wider mb-2">Invite Link</p>
-                <div className="flex gap-2">
-                  <div className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-gray-300 text-sm truncate font-mono">
-                    {roomLink}
+                <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+                {/* Shareable link */}
+                <div>
+                  <p className="text-white/30 text-[10px] uppercase tracking-[0.2em] mb-2">Invite Link</p>
+                  <div className="flex gap-2">
+                    <div className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white/50 text-sm truncate font-mono">
+                      {roomLink}
+                    </div>
+                    <button
+                      onClick={copyLink}
+                      className={`px-5 py-3 rounded-xl font-medium text-sm transition-all ${
+                        copied
+                          ? 'bg-white text-black'
+                          : 'border border-white/20 hover:bg-white/10 text-white/70'
+                      }`}
+                    >
+                      {copied ? 'Copied!' : 'Copy'}
+                    </button>
                   </div>
-                  <button
-                    onClick={copyLink}
-                    className={`px-4 py-3 rounded-xl font-medium text-sm transition-all ${
-                      copied
-                        ? 'bg-green-600 text-white'
-                        : 'bg-gray-800 hover:bg-gray-700 text-white border border-gray-700'
-                    }`}
-                  >
-                    {copied ? 'Copied!' : 'Copy'}
-                  </button>
                 </div>
-              </div>
 
-              {/* Password info */}
-              {usePassword && password && (
-                <div className="flex items-center gap-2 px-4 py-3 bg-blue-900/20 border border-blue-800/30 rounded-xl">
-                  <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  <span className="text-blue-300 text-sm">
-                    Password: <span className="font-mono font-medium">{password}</span>
-                  </span>
-                </div>
-              )}
+                {/* Password info */}
+                {usePassword && password && (
+                  <div className="flex items-center gap-2.5 px-4 py-3 border border-white/10 bg-white/5 rounded-xl">
+                    <svg className="w-4 h-4 text-white/40 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <span className="text-white/50 text-sm font-light">
+                      Password: <span className="font-mono text-white/70">{password}</span>
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
 
             <button
               onClick={joinAsHost}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-blue-600/20"
+              className="group w-full py-4 bg-white text-black text-base font-semibold rounded-xl transition-all hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:scale-[1.02] active:scale-[0.98]"
             >
               Join Your Room
             </button>

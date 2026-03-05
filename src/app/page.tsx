@@ -23,16 +23,40 @@ function GridBackground() {
 }
 
 function FloatingParticles() {
+  // Use deterministic positions to avoid SSR hydration mismatch
+  const particles = [
+    { left: 5, top: 12, dur: 4.2, delay: 0.1 },
+    { left: 15, top: 67, dur: 5.8, delay: 1.2 },
+    { left: 22, top: 34, dur: 7.1, delay: 0.5 },
+    { left: 31, top: 89, dur: 4.9, delay: 2.3 },
+    { left: 38, top: 45, dur: 6.3, delay: 0.8 },
+    { left: 44, top: 8, dur: 5.1, delay: 1.9 },
+    { left: 52, top: 73, dur: 7.5, delay: 0.3 },
+    { left: 58, top: 21, dur: 4.6, delay: 2.7 },
+    { left: 65, top: 56, dur: 6.8, delay: 1.1 },
+    { left: 72, top: 91, dur: 5.4, delay: 0.6 },
+    { left: 78, top: 38, dur: 7.2, delay: 2.1 },
+    { left: 83, top: 62, dur: 4.3, delay: 1.5 },
+    { left: 89, top: 15, dur: 6.1, delay: 0.9 },
+    { left: 94, top: 48, dur: 5.7, delay: 2.5 },
+    { left: 11, top: 82, dur: 7.8, delay: 0.4 },
+    { left: 27, top: 5, dur: 4.5, delay: 1.7 },
+    { left: 46, top: 95, dur: 6.6, delay: 0.2 },
+    { left: 61, top: 29, dur: 5.3, delay: 2.9 },
+    { left: 76, top: 71, dur: 7.4, delay: 1.3 },
+    { left: 91, top: 53, dur: 4.8, delay: 0.7 },
+  ];
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {[...Array(20)].map((_, i) => (
+      {particles.map((p, i) => (
         <div
           key={i}
           className="absolute w-1 h-1 bg-white/10 rounded-full"
           style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            animation: `float ${4 + Math.random() * 4}s ease-in-out ${Math.random() * 3}s infinite`,
+            left: `${p.left}%`,
+            top: `${p.top}%`,
+            animation: `float ${p.dur}s ease-in-out ${p.delay}s infinite`,
           }}
         />
       ))}

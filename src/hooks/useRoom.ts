@@ -280,8 +280,8 @@ export function useRoom(roomId: string) {
     socket.removeAllListeners();
     socket.io.removeAllListeners();
     disconnectSocket();
-    store.reset();
-  }, [store]);
+    useRoomStore.getState().reset();
+  }, []);
 
   const sendChatMessage = useCallback((message: string) => {
     const socket = getSocket();

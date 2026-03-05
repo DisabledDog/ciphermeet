@@ -57,19 +57,19 @@ export default function RoomPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-950">
+    <div className="h-screen flex flex-col bg-black">
       {connectionState === 'connecting' && (
-        <div className="bg-blue-900/50 border-b border-blue-700 text-blue-200 px-4 py-2 text-center text-sm">
+        <div className="border-b border-white/10 bg-white/5 text-white/50 px-4 py-2 text-center text-xs tracking-wider uppercase">
           Connecting...
         </div>
       )}
       {connectionState === 'reconnecting' && (
-        <div className="bg-yellow-900/50 border-b border-yellow-700 text-yellow-200 px-4 py-2 text-center text-sm animate-pulse">
+        <div className="border-b border-white/10 bg-white/5 text-white/40 px-4 py-2 text-center text-xs tracking-wider uppercase animate-pulse">
           Reconnecting...
         </div>
       )}
       {error && (
-        <div className="bg-red-900/50 border-b border-red-700 text-red-200 px-4 py-2 text-center text-sm">
+        <div className="border-b border-red-500/20 bg-red-500/5 text-red-400/80 px-4 py-2 text-center text-sm font-light">
           {error}
         </div>
       )}
