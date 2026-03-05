@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRoomStore } from '@/store/useRoomStore';
+import { useToastStore } from '@/store/useToastStore';
 
 interface ControlsBarProps {
   isAudioEnabled: boolean;
@@ -25,10 +27,26 @@ export function ControlsBar({
 }: ControlsBarProps) {
   const toggleChat = useRoomStore((s) => s.toggleChat);
   const toggleParticipants = useRoomStore((s) => s.toggleParticipants);
+  const addToast = useToastStore((s) => s.addToast);
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  };
 
   const copyInviteLink = () => {
     const url = `${window.location.origin}/room/${roomId}`;
     navigator.clipboard.writeText(url);
+    addToast('Invite link copied');
   };
 
   const btnBase = "p-3 rounded-xl border transition-all";
@@ -38,98 +56,90 @@ export function ControlsBar({
   const btnOff = `${btnBase} border-red-500/30 bg-red-500/10 text-red-400`;
 
   return (
-    <div className="flex items-center justify-center gap-2 px-4 py-3 bg-black border-t border-white/10">
-      {/* Mic toggle */}
-      <button
-        onClick={onToggleAudio}
-        className={isAudioEnabled ? btnDefault : btnOff}
-        title={isAudioEnabled ? 'Mute' : 'Unmute'}
-      >
-        {isAudioEnabled ? (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30">
+      <div className="flex items-center gap-2 px-4 py-3 bg-black/80 border border-white/10 backdrop-blur-xl rounded-2xl shadow-2xl">
+        {/* Room timer */}
+        <div className="flex items-center gap-1.5 px-2 mr-1">
+          <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+          <span className="text-white/40 text-xs font-mono tracking-wider">{formatTime(elapsed)}</span>
+        </div>
+
+        <div className="w-px h-6 bg-white/10" />
+
+        {/* E2E badge */}
+        <div className="flex items-center gap-1 px-2 mr-1" title="End-to-end encrypted">
+          <svg className="w-3.5 h-3.5 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
-        ) : (
+          <span className="text-white/30 text-[10px] tracking-wider uppercase hidden sm:inline">E2E</span>
+        </div>
+
+        <div className="w-px h-6 bg-white/10" />
+
+        {/* Mic toggle */}
+        <button onClick={onToggleAudio} className={isAudioEnabled ? btnDefault : btnOff} title={isAudioEnabled ? 'Mute (M)' : 'Unmute (M)'}>
+          {isAudioEnabled ? (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+            </svg>
+          )}
+        </button>
+
+        {/* Camera toggle */}
+        <button onClick={onToggleVideo} className={isVideoEnabled ? btnDefault : btnOff} title={isVideoEnabled ? 'Camera off (V)' : 'Camera on (V)'}>
+          {isVideoEnabled ? (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+          )}
+        </button>
+
+        {/* Screen share */}
+        <button onClick={onScreenShare} className={isScreenSharing ? btnActive : btnDefault} title={isScreenSharing ? 'Stop sharing' : 'Share screen'}>
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
-        )}
-      </button>
+        </button>
 
-      {/* Camera toggle */}
-      <button
-        onClick={onToggleVideo}
-        className={isVideoEnabled ? btnDefault : btnOff}
-        title={isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
-      >
-        {isVideoEnabled ? (
+        {/* Copy invite link */}
+        <button onClick={copyInviteLink} className={btnDefault} title="Copy invite link">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
           </svg>
-        ) : (
+        </button>
+
+        {/* Participants */}
+        <button onClick={toggleParticipants} className={btnDefault} title="Participants">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
           </svg>
-        )}
-      </button>
+        </button>
 
-      {/* Screen share */}
-      <button
-        onClick={onScreenShare}
-        className={isScreenSharing ? btnActive : btnDefault}
-        title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-        </svg>
-      </button>
+        {/* Chat */}
+        <button onClick={toggleChat} className={btnDefault} title="Chat">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        </button>
 
-      {/* Copy invite link */}
-      <button
-        onClick={copyInviteLink}
-        className={`${btnDefault} active:border-white/40 active:bg-white/20`}
-        title="Copy invite link"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-        </svg>
-      </button>
+        <div className="w-px h-6 bg-white/10" />
 
-      {/* Participants */}
-      <button
-        onClick={toggleParticipants}
-        className={btnDefault}
-        title="Participants"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-        </svg>
-      </button>
-
-      {/* Chat */}
-      <button
-        onClick={toggleChat}
-        className={btnDefault}
-        title="Chat"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-        </svg>
-      </button>
-
-      <div className="w-px h-8 bg-white/10 mx-1" />
-
-      {/* Leave */}
-      <button
-        onClick={onLeave}
-        className={btnDanger}
-        title="Leave call"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" />
-        </svg>
-      </button>
+        {/* Leave */}
+        <button onClick={onLeave} className={btnDanger} title="Leave call">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

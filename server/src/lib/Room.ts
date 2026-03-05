@@ -14,6 +14,8 @@ export class Room {
   peers: Map<string, Peer> = new Map();
   password: string | null = null;
   hostPeerId: string | null = null;
+  createdAt: number = Date.now();
+  lastActivityAt: number = Date.now();
 
   private constructor(id: string, router: Router) {
     this.id = id;
@@ -48,6 +50,7 @@ export class Room {
       throw new Error('Room is full');
     }
     this.peers.set(peer.id, peer);
+    this.lastActivityAt = Date.now();
     if (!this.hostPeerId) {
       this.hostPeerId = peer.id;
     }

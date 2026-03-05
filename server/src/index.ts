@@ -8,14 +8,26 @@ import cors from 'cors';
 import { config } from './config';
 import { createWorkers } from './lib/workerManager';
 import { setupSignaling } from './signaling';
+import { getRoomCount, getRooms } from './lib/roomManager';
 async function main() {
   const app = express();
   app.use(cors());
   app.use(express.json());
 
-  // Health check
+  // Health check + stats
   app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', timestamp: Date.now() });
+    const rooms = getRooms();
+    let totalPeers = 0;
+    for (const room of rooms.values()) {
+      totalPeers += room.peerCount;
+    }
+    res.json({
+      status: 'ok',
+      timestamp: Date.now(),
+      rooms: getRoomCount(),
+      peers: totalPeers,
+      uptime: Math.round(process.uptime()),
+    });
   });
 
   const httpServer = createServer(app);

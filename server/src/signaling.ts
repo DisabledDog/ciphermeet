@@ -1,6 +1,6 @@
 import { Server as SocketServer, Socket } from 'socket.io';
 import { DtlsParameters, MediaKind, RtpCapabilities, RtpParameters } from 'mediasoup/node/lib/types';
-import { createRoom, getRoom, deleteRoom, cleanupEmptyRooms } from './lib/roomManager';
+import { createRoom, getRoom, deleteRoom, cleanupRooms, getRoomCount } from './lib/roomManager';
 import { Peer } from './lib/Peer';
 
 export function setupSignaling(io: SocketServer): void {
@@ -16,7 +16,8 @@ export function setupSignaling(io: SocketServer): void {
       callback: (response: { roomId?: string; error?: string }) => void
     ) => {
       try {
-        const room = await createRoom(undefined, data.password);
+        const ip = socket.handshake.address;
+        const room = await createRoom(undefined, data.password, ip);
         callback({ roomId: room.id });
       } catch (err: any) {
         console.error('[Signaling] create-room error:', err);
@@ -351,8 +352,8 @@ export function setupSignaling(io: SocketServer): void {
     });
   });
 
-  // Periodic cleanup
+  // Periodic cleanup every 30 seconds
   setInterval(() => {
-    cleanupEmptyRooms();
-  }, 60000);
+    cleanupRooms();
+  }, 30000);
 }
