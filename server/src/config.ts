@@ -11,7 +11,7 @@ export const config = {
     workerSettings: {
       logLevel: 'warn',
       rtcMinPort: parseInt(process.env.RTC_MIN_PORT || '40000', 10),
-      rtcMaxPort: parseInt(process.env.RTC_MAX_PORT || '49999', 10),
+      rtcMaxPort: parseInt(process.env.RTC_MAX_PORT || '40100', 10),
     } as WorkerSettings,
 
     routerMediaCodecs: [
