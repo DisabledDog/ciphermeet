@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"    # Next.js frontend
+      - "3001:3001"    # mediasoup signaling
+      - "40000-49999:40000-49999/udp"  # WebRTC media
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - ANNOUNCED_IP=${ANNOUNCED_IP:-127.0.0.1}
+      - RTC_MIN_PORT=40000
+      - RTC_MAX_PORT=49999
+      - NEXT_PUBLIC_SERVER_URL=https://${DOMAIN:-localhost}
+    network_mode: host  # Required for UDP port range performance
+    restart: unless-stopped
