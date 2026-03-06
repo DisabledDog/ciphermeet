@@ -13,6 +13,8 @@ import { PreJoinScreen } from '@/components/PreJoinScreen';
 import { ToastContainer } from '@/components/ToastContainer';
 import { HelpModal } from '@/components/HelpModal';
 import { ReactionOverlay } from '@/components/ReactionOverlay';
+import { StreamSettingsModal } from '@/components/StreamSettingsModal';
+import { useStreaming } from '@/hooks/useStreaming';
 import { playJoinSound, playLeaveSound } from '@/lib/sounds';
 
 export default function RoomPage() {
@@ -23,6 +25,8 @@ export default function RoomPage() {
   const [hasJoined, setHasJoined] = useState(false);
   const [roomPassword, setRoomPassword] = useState<string | undefined>(urlPassword);
   const { joinRoom, leaveRoom, sendChatMessage, sendHandRaise, sendReaction, sendHostMute, startScreenShare, stopScreenShare } = useRoom(roomId);
+  const { isStreaming, startStream, stopStream } = useStreaming();
+  const [showStreamSettings, setShowStreamSettings] = useState(false);
   const {
     displayName,
     localStream,
@@ -144,6 +148,14 @@ export default function RoomPage() {
       <ToastContainer />
       <ReactionOverlay />
       {isHelpOpen && <HelpModal />}
+      {showStreamSettings && (
+        <StreamSettingsModal
+          onClose={() => setShowStreamSettings(false)}
+          onStartStream={(url) => startStream(url)}
+          isStreaming={isStreaming}
+          onStopStream={stopStream}
+        />
+      )}
 
       {connectionState === 'connecting' && (
         <div className="border-b border-white/10 bg-white/5 px-4 py-2 flex items-center justify-center gap-2">
@@ -180,6 +192,8 @@ export default function RoomPage() {
             onHandRaise={sendHandRaise}
             onReaction={sendReaction}
             roomId={roomId}
+            onGoLive={isHost ? () => setShowStreamSettings(true) : undefined}
+            isStreaming={isStreaming}
           />
         </div>
 

@@ -16,6 +16,8 @@ interface ControlsBarProps {
   onHandRaise: (raised: boolean) => void;
   onReaction: (emoji: string) => void;
   roomId: string;
+  onGoLive?: () => void;
+  isStreaming?: boolean;
 }
 
 export function ControlsBar({
@@ -29,6 +31,8 @@ export function ControlsBar({
   onHandRaise,
   onReaction,
   roomId,
+  onGoLive,
+  isStreaming,
 }: ControlsBarProps) {
   const toggleChat = useRoomStore((s) => s.toggleChat);
   const toggleParticipants = useRoomStore((s) => s.toggleParticipants);
@@ -126,6 +130,14 @@ export function ControlsBar({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
         </button>
+
+        {/* Go Live — hidden on mobile, host only */}
+        {onGoLive && (
+          <button onClick={onGoLive} className={`hidden sm:flex items-center gap-1.5 ${isStreaming ? `${btnBase} border-red-500/40 bg-red-500/15 text-red-400` : btnDefault}`} title={isStreaming ? 'Streaming live' : 'Go live'}>
+            <div className={`w-2 h-2 rounded-full ${isStreaming ? 'bg-red-500 animate-pulse' : 'bg-white/30'}`} />
+            <span className="text-xs font-medium">{isStreaming ? 'LIVE' : 'Go Live'}</span>
+          </button>
+        )}
 
         <div className="w-px h-6 bg-white/10" />
 

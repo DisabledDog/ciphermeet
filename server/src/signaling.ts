@@ -2,11 +2,13 @@ import { Server as SocketServer, Socket } from 'socket.io';
 import { DtlsParameters, MediaKind, RtpCapabilities, RtpParameters } from 'mediasoup/node/lib/types';
 import { createRoom, getRoom, deleteRoom, cleanupRooms, getRoomCount } from './lib/roomManager';
 import { Peer } from './lib/Peer';
+import { ChildProcess, spawn } from 'child_process';
 
 export function setupSignaling(io: SocketServer): void {
   io.on('connection', (socket: Socket) => {
     let currentRoomId: string | null = null;
     let currentPeerId: string | null = null;
+    let ffmpegProcess: ChildProcess | null = null;
 
     console.log(`[Signaling] Socket connected`);
 
@@ -383,7 +385,100 @@ export function setupSignaling(io: SocketServer): void {
       });
     });
 
+    // RTMP Streaming
+    socket.on('stream-start', (
+      data: { rtmpUrl: string },
+      callback: (response: { error?: string }) => void
+    ) => {
+      if (!currentRoomId || !currentPeerId) {
+        callback({ error: 'Not in a room' });
+        return;
+      }
+
+      // Only host can stream
+      const room = getRoom(currentRoomId);
+      if (!room || room.hostPeerId !== currentPeerId) {
+        callback({ error: 'Only the host can stream' });
+        return;
+      }
+
+      if (ffmpegProcess) {
+        callback({ error: 'Already streaming' });
+        return;
+      }
+
+      try {
+        // Spawn FFmpeg: read WebM from stdin, output RTMP
+        ffmpegProcess = spawn('ffmpeg', [
+          '-i', 'pipe:0',          // Read from stdin
+          '-c:v', 'libx264',       // Re-encode video as H.264
+          '-preset', 'veryfast',   // Fast encoding
+          '-tune', 'zerolatency',  // Low latency
+          '-b:v', '2500k',         // Video bitrate
+          '-maxrate', '2500k',
+          '-bufsize', '5000k',
+          '-pix_fmt', 'yuv420p',
+          '-g', '60',              // Keyframe every 2s at 30fps
+          '-c:a', 'aac',           // Audio codec
+          '-b:a', '128k',          // Audio bitrate
+          '-ar', '44100',          // Audio sample rate
+          '-f', 'flv',             // Output format
+          data.rtmpUrl,            // RTMP destination
+        ], {
+          stdio: ['pipe', 'ignore', 'pipe'],
+        });
+
+        ffmpegProcess.stderr?.on('data', (chunk: Buffer) => {
+          // Log FFmpeg output for debugging (first 200 chars)
+          const msg = chunk.toString().slice(0, 200);
+          if (msg.includes('error') || msg.includes('Error')) {
+            console.error('[Stream] FFmpeg error:', msg);
+          }
+        });
+
+        ffmpegProcess.on('close', (code) => {
+          console.log(`[Stream] FFmpeg exited with code ${code}`);
+          ffmpegProcess = null;
+          socket.emit('stream-ended');
+        });
+
+        ffmpegProcess.on('error', (err) => {
+          console.error('[Stream] FFmpeg process error:', err.message);
+          ffmpegProcess = null;
+          socket.emit('stream-ended');
+        });
+
+        console.log(`[Stream] Started streaming to RTMP`);
+        callback({});
+      } catch (err: any) {
+        console.error('[Stream] Failed to start:', err);
+        callback({ error: 'Failed to start stream. Is FFmpeg installed?' });
+      }
+    });
+
+    socket.on('stream-data', (data: ArrayBuffer) => {
+      if (ffmpegProcess?.stdin && !ffmpegProcess.stdin.destroyed) {
+        ffmpegProcess.stdin.write(Buffer.from(data));
+      }
+    });
+
+    socket.on('stream-stop', () => {
+      if (ffmpegProcess) {
+        ffmpegProcess.stdin?.end();
+        ffmpegProcess.kill('SIGTERM');
+        ffmpegProcess = null;
+        console.log('[Stream] Stopped streaming');
+      }
+    });
+
     socket.on('disconnect', () => {
+      // Clean up FFmpeg on disconnect
+      if (ffmpegProcess) {
+        ffmpegProcess.stdin?.end();
+        ffmpegProcess.kill('SIGTERM');
+        ffmpegProcess = null;
+      }
+
       console.log(`[Signaling] Socket disconnected`);
 
       if (currentRoomId && currentPeerId) {

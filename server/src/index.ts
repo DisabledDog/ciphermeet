@@ -37,6 +37,7 @@ async function main() {
       origin: '*',
       methods: ['GET', 'POST'],
     },
+    maxHttpBufferSize: 5e6, // 5MB for streaming chunks
   });
 
   // Start mediasoup workers
